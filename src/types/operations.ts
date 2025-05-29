@@ -1,10 +1,5 @@
 import { z } from 'zod';
 
-// Base operation interface
-export const BaseOperationSchema = z.object({
-  type: z.string(),
-});
-
 // File write operation
 export const FileWriteOperationSchema = z.object({
   type: z.literal('file_write'),
@@ -24,8 +19,11 @@ export const DirCreateOperationSchema = z.object({
 export const ShellExecOperationSchema = z.object({
   type: z.literal('shell_exec'),
   commands: z.array(z.string()),
-  shell: z.enum(['powershell', 'cmd', 'gitbash']).optional(),
-  workingDir: z.string().optional(),
+  shell: z.enum(['powershell', 'cmd', 'gitbash'])
+    .default('cmd')
+    .optional(),
+  workingDir: z.string()
+    .optional(),
 });
 
 // Code execute operation

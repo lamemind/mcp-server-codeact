@@ -4,7 +4,8 @@ import { BatchOperationSchema } from './operations.js';
 // Batch execute request
 export const BatchExecuteRequestSchema = z.object({
   operations: z.array(BatchOperationSchema),
-  sync: z.boolean().optional().default(false),
+  sync: z.boolean()
+    .optional().default(false),
   workdir: z.string().optional(),
 });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { BatchOperation, OperationResult } from './operations.js';
+import { BatchOperation } from './operations.js';
+import { OperationResult } from './batch.js';
 
 // Batch state for internal management
 export enum BatchStatus {
