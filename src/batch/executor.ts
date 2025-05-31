@@ -1,17 +1,7 @@
-import { 
-  BatchExecuteRequest, 
-  BatchExecuteRequestSchema,
-  BatchExecuteResponseSync,
-  BatchExecuteResponseAsync,
-  AwaitRequest,
-  AwaitRequestSchema,
-  AwaitResponse,
-  BatchState,
-  BatchStatus,
-  ServerConfig,
-  OperationResult
-} from '../types/index.js';
 import { randomUUID } from 'crypto';
+import { BatchState, BatchStatus } from '../types/internal-types.js';
+import { ServerConfig } from '../server/server-config-schema.js';
+import { AwaitRequestSchema, AwaitResponse, BatchExecuteRequest, BatchExecuteRequestSchema, BatchExecuteResponseAsync, BatchExecuteResponseSync } from '../types/tool-batch-schema.js';
 
 export class BatchExecutor {
   private activeBatches: Map<string, BatchState> = new Map();
@@ -54,10 +44,10 @@ export class BatchExecutor {
 
   async await(args: any): Promise<AwaitResponse> {
     const request = AwaitRequestSchema.parse(args);
-    const batch = this.activeBatches.get(request.batch_id);
+    const batch = this.activeBatches.get(request.batchId);
     
     if (!batch) {
-      throw new Error(`Batch not found: ${request.batch_id}`);
+      throw new Error(`Batch not found: ${request.batchId}`);
     }
 
     // If timeout specified, wait for completion or timeout
@@ -86,19 +76,19 @@ export class BatchExecutor {
   private async executeSynchronous(request: BatchExecuteRequest): Promise<BatchExecuteResponseSync> {
     const batch = this.createBatch(request);
     batch.status = BatchStatus.RUNNING;
-    batch.started_at = new Date();
+    batch.startedAt = new Date();
 
     try {
       const results = await this.runOperations(batch);
       batch.results = results;
       batch.status = BatchStatus.COMPLETED;
-      batch.completed_at = new Date();
+      batch.completedAt = new Date();
       
       return { results };
     } catch (error) {
       batch.status = BatchStatus.FAILED;
       batch.error = error instanceof Error ? error.message : String(error);
-      batch.completed_at = new Date();
+      batch.completedAt = new Date();
       throw error;
     }
   }
