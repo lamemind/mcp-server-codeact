@@ -1,11 +1,10 @@
 import { z } from 'zod';
-import { BatchOperation } from './operations.js';
 import { OperationResult } from './batch.js';
 
 // Batch state for internal management
 export enum BatchStatus {
   QUEUED = 'queued',
-  RUNNING = 'running', 
+  RUNNING = 'running',
   COMPLETED = 'completed',
   FAILED = 'failed',
   TIMEOUT = 'timeout'
@@ -13,12 +12,11 @@ export enum BatchStatus {
 
 export interface BatchState {
   id: string;
-  operations: BatchOperation[];
   status: BatchStatus;
   results: OperationResult[];
-  created_at: Date;
-  started_at?: Date;
-  completed_at?: Date;
+  createdAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
   error?: string;
   workdir?: string;
 }
