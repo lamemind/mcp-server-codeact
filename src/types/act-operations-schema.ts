@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+
 // File write operation
 export const FileWriteOperationSchema = z.object({
   type: z.literal('file_write'),
@@ -9,11 +10,25 @@ export const FileWriteOperationSchema = z.object({
   })),
 });
 
+
 // Directory create operation
+type DirectoryStructure = {
+  [key: string]: DirectoryStructure;
+};
+const DirectoryStructureSchema: z.ZodType<DirectoryStructure> = z.lazy(() =>
+  z.record(
+    z.string(), // chiave = nome directory  
+    DirectoryStructureSchema // valore = sottostruttura (ricorsivo)
+  )
+);
 export const DirCreateOperationSchema = z.object({
   type: z.literal('dir_create'),
-  paths: z.array(z.string()),
+  structure: DirectoryStructureSchema,
+  root: z.string()
+    .optional()
+    .describe("Root directory for the structure, defaults to current working directory")
 });
+
 
 // Shell execute operation
 export const ShellExecOperationSchema = z.object({
@@ -26,6 +41,7 @@ export const ShellExecOperationSchema = z.object({
     .optional(),
 });
 
+
 // Code execute operation
 export const CodeExecOperationSchema = z.object({
   type: z.literal('code_exec'),
@@ -34,6 +50,7 @@ export const CodeExecOperationSchema = z.object({
   workingDir: z.string().optional(),
 });
 
+
 // Union of all operations
 export const BatchOperationSchema = z.discriminatedUnion('type', [
   FileWriteOperationSchema,
@@ -41,6 +58,7 @@ export const BatchOperationSchema = z.discriminatedUnion('type', [
   ShellExecOperationSchema,
   CodeExecOperationSchema,
 ]);
+
 
 // TypeScript types from schemas
 export type FileWriteOperation = z.infer<typeof FileWriteOperationSchema>;
