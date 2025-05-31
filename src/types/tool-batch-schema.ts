@@ -25,7 +25,8 @@ export const BatchExecuteRequestSchema = z.object({
 export const AwaitRequestSchema = z.object({
   batchId: z.string(),
   timeout: z.number()
-    .optional().default(0), // 0 means no timeout
+    .optional().default(0)
+    .describe("Timeout in seconds, 0 means no timeout"),
   killOnTimeout: z.boolean()
     .optional().default(false)
 });
