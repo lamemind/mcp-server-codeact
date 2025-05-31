@@ -14,7 +14,7 @@ export class BatchExecutor {
     // Setup cleanup timer
     this.cleanupTimer = setInterval(() => {
       this.cleanupCompletedBatches();
-    }, config.cleanup_interval * 1000);
+    }, config.cleanupInterval * 1000);
   }
 
   async execute(args: any): Promise<BatchExecuteResponseSync | BatchExecuteResponseAsync> {
@@ -171,7 +171,7 @@ export class BatchExecutor {
   }
 
   private cleanupCompletedBatches(): void {
-    const cutoffTime = new Date(Date.now() - (this.config.cleanup_interval * 1000));
+    const cutoffTime = new Date(Date.now() - (this.config.cleanupInterval * 1000));
     
     for (const [id, batch] of this.activeBatches) {
       if (batch.completed_at && batch.completed_at < cutoffTime) {
@@ -180,11 +180,11 @@ export class BatchExecutor {
     }
 
     // Keep only recent batches if history is too large
-    if (this.activeBatches.size > this.config.max_batch_history) {
+    if (this.activeBatches.size > this.config.maxBatchHistory) {
       const sortedBatches = Array.from(this.activeBatches.entries())
         .sort(([,a], [,b]) => b.created_at.getTime() - a.created_at.getTime());
       
-      const toKeep = sortedBatches.slice(0, this.config.max_batch_history);
+      const toKeep = sortedBatches.slice(0, this.config.maxBatchHistory);
       this.activeBatches.clear();
       
       for (const [id, batch] of toKeep) {
