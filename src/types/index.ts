@@ -1,8 +1,8 @@
 // Operations types
-export * from './operations.js';
+export * from './act-operations-schema.js';
 
 // Batch management types  
-export * from './batch.js';
+export * from './tool-batch-schema.js';
 
-// Configuration types
-export * from './config.js';
+// Configuration schema types
+export * from './server-config-schema.js';
