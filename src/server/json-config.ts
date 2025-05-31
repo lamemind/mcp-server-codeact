@@ -22,4 +22,24 @@ function readConfigFile(filePath: string): ServerConfig {
     }
 }
 
-export { readConfigFile };
+const DEFAULT_CONFIG: ServerConfig = {
+    security: {
+        maxBatchSize: 50,
+        maxConcurrentBatches: 5,
+        maxOperationTimeout: 30,
+        maxBatchTimeout: 300,
+        allowedPaths: [process.cwd()],
+        restrictWorkingDirectory: true,
+        blockedCommands: ['rm', 'del', 'format', 'shutdown', 'regedit'],
+        enableSandbox: true,
+    },
+    runtimes: {
+        node: { enabled: false, command: 'node', timeout: 30 },
+        php: { enabled: false, command: 'php', timeout: 30 },
+        python: { enabled: false, command: 'python', timeout: 30 },
+    },
+    cleanupInterval: 300,
+    maxBatchHistory: 100,
+};
+
+export { readConfigFile, DEFAULT_CONFIG };
