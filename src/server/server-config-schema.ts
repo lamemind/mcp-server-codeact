@@ -14,14 +14,24 @@ export const SecurityConfigSchema = z.object({
 
 export const RuntimeConfigSchema = z.object({
   node: z.object({
-    command: z.string().default('node'),
+    enabled: z.boolean().default(false)
+      .describe('Enable Node.js runtime'),
+    command: z.string()
+      .default('node')
+      .describe('Command to run Node.js scripts'),
     timeout: z.number().default(30),
   }),
   php: z.object({
-    command: z.string().default('php'),
+    enabled: z.boolean().default(false)
+      .describe('Enable PHP runtime'),
+    command: z.string()
+      .default('php')
+      .describe('Command to run PHP scripts'),
     timeout: z.number().default(30),
   }),
   python: z.object({
+    enabled: z.boolean().default(false)
+      .describe('Enable Python runtime'),
     command: z.string().default('python'),
     timeout: z.number().default(30),
   }),
@@ -30,8 +40,8 @@ export const RuntimeConfigSchema = z.object({
 export const ServerConfigSchema = z.object({
   security: SecurityConfigSchema,
   runtimes: RuntimeConfigSchema,
-  cleanup_interval: z.number().default(300), // seconds
-  max_batch_history: z.number().default(1000),
+  cleanupInterval: z.number().default(3600), // seconds
+  maxBatchHistory: z.number().default(1000),
 });
 
 // TypeScript types
