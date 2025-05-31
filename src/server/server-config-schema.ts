@@ -1,25 +1,4 @@
 import { z } from 'zod';
-import { OperationResult } from './batch.js';
-
-// Batch state for internal management
-export enum BatchStatus {
-  QUEUED = 'queued',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  TIMEOUT = 'timeout'
-}
-
-export interface BatchState {
-  id: string;
-  status: BatchStatus;
-  results: OperationResult[];
-  createdAt: Date;
-  startedAt?: Date;
-  completedAt?: Date;
-  error?: string;
-  workdir?: string;
-}
 
 // Configuration schemas
 export const SecurityConfigSchema = z.object({
