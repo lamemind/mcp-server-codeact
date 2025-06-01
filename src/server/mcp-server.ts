@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ServerConfig } from "./server-config-schema.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { BatchExecuteRequestSchema, BatchExecuteRequest, AwaitRequest } from "../types/tool-batch-schema.js";
+import { BatchExecutor } from "../batch/batch-executor.js";
 
 export async function startMainServer(config: ServerConfig): Promise<void> {
     console.error(`Starting MCP Server CodeAct...`);
@@ -18,8 +19,9 @@ export async function startMainServer(config: ServerConfig): Promise<void> {
         }
     });
 
-    const executor = {} as unknown; // Placeholder for BatchExecutor, which should be implemented separately
+    const executor = new BatchExecutor(config);
 
+    // @ts-ignore
     mcpServer.tool(`batch-execute`, "description", BatchExecuteRequestSchema, async (args: BatchExecuteRequest) => {
         console.error(`Received batch execute request:`, args);
         if (args.sync)
@@ -27,6 +29,8 @@ export async function startMainServer(config: ServerConfig): Promise<void> {
         else
             return await executor.executeBatchAsync(args.operations, args.workdir);
     });
+
+    // @ts-ignore
     mcpServer.tool(`batch-await`, "description", BatchExecuteRequestSchema, async (args: AwaitRequest) => {
         console.error(`Received batch execute request:`, args);
         return await executor.awaitBatch(args.batchId, {
@@ -39,7 +43,7 @@ export async function startMainServer(config: ServerConfig): Promise<void> {
     await mcpServer.connect(transport);
 
     process.on('SIGINT', async () => {
-        await executor.killAll();
+        await executor.killAllBeofreShutdown();
         process.exit(0);
     });
 
