@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { BatchState, BatchStatus } from '../types/internal-types.js';
+import { BatchState, BatchStatus, createBatch, mapBatchStatusToAwaitStatus } from '../types/internal-types.js';
 import { ServerConfig } from '../server/server-config-schema.js';
 import { AwaitRequestSchema, AwaitResponse, BatchExecuteRequest, BatchExecuteRequestSchema, BatchExecuteResponseAsync, BatchExecuteResponseSync } from '../types/tool-batch-schema.js';
 
@@ -66,15 +66,15 @@ export class BatchExecutor {
     }
 
     return {
-      status: this.mapBatchStatusToAwaitStatus(batch.status),
+      status: mapBatchStatusToAwaitStatus(batch.status),
       results: batch.results,
-      operations_completed: batch.results.length,
-      operations_total: batch.operations.length,
+      operationsCompleted: batch.results.length,
+      operationsTotal: batch.operations.length,
     };
   }
 
   private async executeSynchronous(request: BatchExecuteRequest): Promise<BatchExecuteResponseSync> {
-    const batch = this.createBatch(request);
+    const batch = createBatch(request);
     batch.status = BatchStatus.RUNNING;
     batch.startedAt = new Date();
 
@@ -94,22 +94,22 @@ export class BatchExecutor {
   }
 
   private executeAsynchronous(request: BatchExecuteRequest): BatchExecuteResponseAsync {
-    const batch = this.createBatch(request);
+    const batch = createBatch(request);
     
     // Start execution in background
     setImmediate(async () => {
       batch.status = BatchStatus.RUNNING;
-      batch.started_at = new Date(); 
+      batch.startedAt = new Date(); 
       
       try {
         const results = await this.runOperations(batch);
         batch.results = results;
         batch.status = BatchStatus.COMPLETED;
-        batch.completed_at = new Date();
+        batch.completedAt = new Date();
       } catch (error) {
         batch.status = BatchStatus.FAILED;
         batch.error = error instanceof Error ? error.message : String(error);
-        batch.completed_at = new Date();
+        batch.completedAt = new Date();
       }
     });
 
@@ -117,20 +117,6 @@ export class BatchExecutor {
       batch_id: batch.id,
       status: 'queued'
     };
-  }
-
-  private createBatch(request: BatchExecuteRequest): BatchState {
-    const batch: BatchState = {
-      id: randomUUID(),
-      operations: request.operations,
-      status: BatchStatus.QUEUED,
-      results: [],
-      created_at: new Date(),
-      workdir: request.workdir,
-    };
-
-    this.activeBatches.set(batch.id, batch);
-    return batch;
   }
 
   private async runOperations(batch: BatchState): Promise<OperationResult[]> {
@@ -160,21 +146,11 @@ export class BatchExecutor {
     return results;
   }
 
-  private mapBatchStatusToAwaitStatus(status: BatchStatus): 'completed' | 'failed' | 'running' | 'timeout' {
-    switch (status) {
-      case BatchStatus.COMPLETED: return 'completed';
-      case BatchStatus.FAILED: return 'failed';
-      case BatchStatus.RUNNING:
-      case BatchStatus.QUEUED: return 'running';
-      case BatchStatus.TIMEOUT: return 'timeout';
-    }
-  }
-
   private cleanupCompletedBatches(): void {
     const cutoffTime = new Date(Date.now() - (this.config.cleanupInterval * 1000));
     
     for (const [id, batch] of this.activeBatches) {
-      if (batch.completed_at && batch.completed_at < cutoffTime) {
+      if (batch.completedAt && batch.completedAt < cutoffTime) {
         this.activeBatches.delete(id);
       }
     }
