@@ -38,11 +38,11 @@ export class BatchExecutor {
 
         for (let i = 0; i < batch.operations.length; i++) {
             const operation = batch.operations[i];
-            const opWorkingDir = operation.workingDir || batch.workingDir;
+            operation.workingDir = operation.workingDir || batch.workingDir;
 
             try {
-                validateOperation(this.config, operation, opWorkingDir);
-                const result = await this.executeOperation(operation, batch.workingDir);
+                validateOperation(this.config, operation, operation.workingDir);
+                const result = await this.executeOperation(operation);
 
                 result.operationIndex = i;
                 batchResult.results.push(result);
@@ -76,16 +76,16 @@ export class BatchExecutor {
         throw new Error("Method not implemented.");
     }
 
-    private async executeOperation(operation: BatchOperation, workdir: string): Promise<OperationResult> {
+    private async executeOperation(operation: BatchOperation): Promise<OperationResult> {
         switch (operation.type) {
             case 'file_write':
-                return await executeFileWrite(operation, workdir);
+                return await executeFileWrite(operation);
             case 'dir_create':
-                return await executeDirCreate(operation, workdir);
+                return await executeDirCreate(operation);
             case 'shell_exec':
-                return await executeShellExec(operation, workdir);
+                return await executeShellExec(operation);
             case 'code_exec':
-                return await executeCodeExec(operation, workdir);
+                return await executeCodeExec(operation);
             default:
                 throw new Error(`Unknown operation type: ${(operation as any).type}`);
         }
