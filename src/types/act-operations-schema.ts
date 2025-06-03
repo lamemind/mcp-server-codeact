@@ -10,6 +10,7 @@ export const FileWriteOperationSchema = z.object({
   })),
   workingDir: z.string()
     .optional()
+    .describe("Working directory for the file write operation, defaults to the batch working directory")
 });
 
 
@@ -28,7 +29,7 @@ export const DirCreateOperationSchema = z.object({
   structure: DirectoryStructureSchema,
   workingDir: z.string()
     .optional()
-    .describe("Root directory for the structure, defaults to current working directory")
+    .describe("Root directory for the structure, defaults to the batch working directory")
 });
 
 
@@ -41,6 +42,7 @@ export const ShellExecOperationSchema = z.object({
     .optional(),
   workingDir: z.string()
     .optional()
+    .describe("Working directory for the shell commands, defaults to the batch working directory")
 });
 
 
@@ -50,7 +52,8 @@ export const CodeExecOperationSchema = z.object({
   runtime: z.enum(['node', 'php', 'python']),
   code: z.string(),
   workingDir: z.string()
-    .optional(),
+    .optional()
+    .describe("Working directory for the code execution, defaults to the batch working directory")
 });
 
 

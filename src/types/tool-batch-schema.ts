@@ -17,7 +17,9 @@ export const BatchExecuteRequestSchema = z.object({
   operations: z.array(BatchOperationSchema),
   sync: z.boolean()
     .optional().default(false),
-  workdir: z.string().optional(),
+  workdir: z.string()
+    .optional()
+    .describe("Working directory for the batch, defaults to a fallback/temp directory"),
 });
 
 
