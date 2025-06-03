@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ServerConfig } from "./server-config-schema.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { BatchExecuteRequestSchema, BatchExecuteRequest, AwaitRequest } from "../types/tool-batch-schema.js";
-import { BatchExecutor } from "../batch/batch-executor.js";
+import { BatchExecutor } from "../batch/batch-executor-2.js";
 
 export async function startMainServer(config: ServerConfig): Promise<void> {
     console.error(`Starting MCP Server CodeAct...`);
@@ -24,10 +24,7 @@ export async function startMainServer(config: ServerConfig): Promise<void> {
     // @ts-ignore
     mcpServer.tool(`batch-execute`, "description", BatchExecuteRequestSchema, async (args: BatchExecuteRequest) => {
         console.error(`Received batch execute request:`, args);
-        if (args.sync)
-            return await executor.executeBatchSync(args.operations, args.workdir);
-        else
-            return await executor.executeBatchAsync(args.operations, args.workdir);
+        return await executor.executeBatch(args);
     });
 
     // @ts-ignore
