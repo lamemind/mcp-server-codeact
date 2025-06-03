@@ -40,8 +40,9 @@ export const BatchExecuteResponseAsyncSchema = z.object({
 
 // `Batch execute sync` and Await response
 export const AwaitResponseSchema = z.object({
-  status: z.enum(['queued', 'completed', 'failed', 'running', 'killed']),
-  results: z.array(OperationResultSchema).optional(),
+  batchId: z.string(),
+  status: z.enum(['queued', 'completed', 'failed', 'running', 'timeout', 'killed']),
+  results: z.array(OperationResultSchema).default([]),
   operationsCompleted: z.number(),
   operationsTotal: z.number(),
 });
