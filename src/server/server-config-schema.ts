@@ -7,7 +7,6 @@ export const SecurityConfigSchema = z.object({
   maxOperationTimeout: z.number().default(30), // seconds
   maxBatchTimeout: z.number().default(300), // seconds
   allowedPaths: z.array(z.string()),
-  restrictWorkingDirectory: z.boolean().default(true),
   blockedCommands: z.array(z.string()).default([]),
   enableSandbox: z.boolean().default(true),
 });
