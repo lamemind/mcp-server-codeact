@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { AwaitResponse, BatchExecuteRequest, OperationResult } from "../types/tool-batch-schema.js";
-import { BatchOperation } from "../types/act-operations-schema.js";
 import { ChildProcess } from "node:child_process";
 
 // Batch state for internal management
@@ -22,13 +21,16 @@ export function mapBatchStatusToAwaitStatus(status: BatchStatus): AwaitResponse[
   }
 }
 
-interface BatchExecutionContext {
+export interface BatchExecutionContext {
   // Core batch info
   id: string;
   status: BatchStatus;
   request: BatchExecuteRequest;
+  operations: BatchExecuteRequest['operations'];
+  workingDir: string;
 
-  // Execution tracking  
+  // Execution tracking
+  sync: boolean; // If true, this is a synchronous batch
   executionPromise?: Promise<OperationResult[]>;
   abortController: AbortController;
 
@@ -57,7 +59,10 @@ export function createBatchExecutionContext(request: BatchExecuteRequest): Batch
     id: randomUUID(),
     status: BatchStatus.QUEUED,
     request,
+    operations: request.operations,
+    workingDir: request.workdir || process.cwd(),
 
+    sync: request.sync,
     executionPromise: undefined,
     abortController: new AbortController(),
     activeProcess: undefined,
