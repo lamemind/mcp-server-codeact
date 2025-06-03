@@ -1,44 +1,32 @@
 import { spawn } from 'child_process';
 import { writeFile, unlink } from 'fs/promises';
-import { resolve, isAbsolute, join } from 'path';
+import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { CodeExecOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
 
 const RUNTIME_CONFIGS = {
-  node: { 
-    command: 'node', 
+  node: {
+    command: 'node',
     extension: '.js',
-    timeout: 30000 
+    timeout: 30000
   },
-  php: { 
-    command: 'php', 
+  php: {
+    command: 'php',
     extension: '.php',
-    timeout: 30000 
+    timeout: 30000
   },
-  python: { 
-    command: 'python', 
+  python: {
+    command: 'python',
     extension: '.py',
-    timeout: 30000 
+    timeout: 30000
   }
 };
 
-export async function executeCodeExec(
-  operation: CodeExecOperation,
-  workdir: string = process.cwd()
-): Promise<OperationResult> {
+export async function executeCodeExec(operation: CodeExecOperation): Promise<OperationResult> {
   let tempFilePath: string | null = null;
-  
+
   try {
-    // Validate and resolve working directory
-    const execWorkdir = operation.workingDir
-      ? (isAbsolute(operation.workingDir) ? operation.workingDir : resolve(workdir, operation.workingDir))
-      : workdir;
-
-    if (!execWorkdir.startsWith(workdir)) {
-      throw new Error(`Invalid working directory: ${operation.workingDir} is outside base work directory.`);
-    }
-
     const runtime = RUNTIME_CONFIGS[operation.runtime];
     if (!runtime) {
       throw new Error(`Unsupported runtime: ${operation.runtime}`);
@@ -46,15 +34,15 @@ export async function executeCodeExec(
 
     // Create temporary file
     const tempFileName = `temp_${randomUUID()}${runtime.extension}`;
-    tempFilePath = join(execWorkdir, tempFileName);
-    
+    tempFilePath = join(operation.workingDir!, tempFileName);
+
     await writeFile(tempFilePath, operation.code, 'utf8');
 
     // Execute code
     const output = await executeCodeFile(
       runtime.command,
       tempFilePath,
-      execWorkdir,
+      operation.workingDir!,
       runtime.timeout
     );
 

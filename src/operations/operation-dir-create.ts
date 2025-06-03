@@ -3,20 +3,10 @@ import { resolve, isAbsolute } from 'path';
 import { DirCreateOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
 
-export async function executeDirCreate(
-  operation: DirCreateOperation,
-  workdir: string = process.cwd()
-): Promise<OperationResult> {
+export async function executeDirCreate(operation: DirCreateOperation): Promise<OperationResult> {
   try {
-    // Determine root path: operation.root or workdir
-    const rootPath = operation.root
-      ? (isAbsolute(operation.root) ? operation.root : resolve(workdir, operation.root))
-      : workdir;
+    const rootPath = operation.workingDir!;
 
-    if (!rootPath.startsWith(workdir))
-      throw new Error(`Invalid root path: ${operation.root} is outside the work directory.`);
-
-    // Collect all directories to create
     const directoriesToCreate: string[] = [];
     collectDirectories(operation.structure, rootPath, directoriesToCreate);
 

@@ -1,5 +1,4 @@
 import { spawn } from 'child_process';
-import { resolve, isAbsolute } from 'path';
 import { ShellExecOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
 
@@ -9,20 +8,8 @@ const SHELL_COMMANDS = {
   gitbash: { cmd: 'C:\\Program Files\\Git\\bin\\bash.exe', args: ['-c'] }
 };
 
-export async function executeShellExec(
-  operation: ShellExecOperation,
-  workdir: string = process.cwd()
-): Promise<OperationResult> {
+export async function executeShellExec(operation: ShellExecOperation): Promise<OperationResult> {
   try {
-    // Validate and resolve working directory
-    const execWorkdir = operation.workingDir
-      ? (isAbsolute(operation.workingDir) ? operation.workingDir : resolve(workdir, operation.workingDir))
-      : workdir;
-
-    if (!execWorkdir.startsWith(workdir)) {
-      throw new Error(`Invalid working directory: ${operation.workingDir} is outside base work directory.`);
-    }
-
     const shell = operation.shell || 'cmd';
     const shellConfig = SHELL_COMMANDS[shell];
 
@@ -36,7 +23,7 @@ export async function executeShellExec(
     // Execute commands sequentially
     for (const [index, command] of operation.commands.entries()) {
       try {
-        const output = await executeCommand(shellConfig, command, execWorkdir);
+        const output = await executeCommand(shellConfig, command, operation.workingDir!);
         results.push(`Command ${index + 1}: ${output}`);
       } catch (error) {
         allSuccessful = false;
