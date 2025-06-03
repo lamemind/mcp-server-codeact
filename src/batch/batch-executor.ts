@@ -1,34 +1,94 @@
+import { executeCodeExec } from "../operations/operation-code-exec.js";
+import { executeDirCreate } from "../operations/operation-dir-create.js";
+import { executeFileWrite } from "../operations/operation-file-write.js";
+import { executeShellExec } from "../operations/operation-shell-exec.js";
 import { ServerConfig } from "../server/server-config-schema.js";
-import { BatchState } from "../types/internal-types.js";
+import { BatchOperation } from "../types/act-operations-schema.js";
+import { BatchExecuteRequest, BatchExecuteResponseAsync, BatchExecuteResponseSync, OperationResult } from "../types/tool-batch-schema.js";
+import { validateOperation, validatePath } from "./batch-utils.js";
+import { BatchExecutionContext, createBatchExecutionContext } from "./batch-types.js";
 
 export class BatchExecutor {
 
-    private activeBatches: Map<string, BatchState> = new Map();
+
     private config: ServerConfig;
 
     constructor(config: ServerConfig) {
         this.config = config;
     }
 
-    public async executeBatchAsync(operations: any, workdir: string | undefined): Promise<any> {
+    public async executeBatch(request: BatchExecuteRequest): Promise<BatchExecuteResponseSync | BatchExecuteResponseAsync> {
+        const batchContext = createBatchExecutionContext(request);
+        validatePath(this.config, batchContext.workingDir);
+        if (batchContext.sync) {
+            return await this.executeBatchSync(batchContext);
+        } else {
+            return await this.executeBatchAsync(batchContext);
+        }
+    }
+
+    public async executeBatchSync(batch: BatchExecutionContext): Promise<BatchExecuteResponseSync> {
+        const batchResult: BatchExecuteResponseSync = {
+            batchId: batch.id,
+            status: 'running',
+            operationsTotal: batch.operations.length,
+            operationsCompleted: 0,
+            results: []
+        };
+
+        for (let i = 0; i < batch.operations.length; i++) {
+            const operation = batch.operations[i];
+            const opWorkingDir = operation.workingDir || batch.workingDir;
+
+            try {
+                validateOperation(this.config, operation, opWorkingDir);
+                const result = await this.executeOperation(operation, batch.workingDir);
+
+                result.operationIndex = i;
+                batchResult.results.push(result);
+                if (result.status === 'error')
+                    break;
+
+            } catch (error) {
+                const errorResult: OperationResult = {
+                    operationIndex: i,
+                    status: 'error',
+                    error: error instanceof Error ? error.message : String(error)
+                };
+                batchResult.results.push(errorResult);
+            }
+        }
+
+        batchResult.operationsCompleted = batchResult.results.filter(r => r.status !== 'error').length;
+        batchResult.status = batchResult.operationsCompleted === batch.operations.length ? 'completed' : 'failed';
+        return batchResult;
+    }
+
+    public async executeBatchAsync(batch: BatchExecutionContext): Promise<BatchExecuteResponseAsync> {
         throw new Error("Method not implemented.");
     }
-    public async executeBatchSync(operations: any, workdir: string | undefined): Promise<any> {
-        throw new Error("Method not implemented.");
-    }
-    
+
     public async awaitBatch(batchId: string, options: any): Promise<any> {
         throw new Error("Method not implemented.");
     }
-    
+
     public async killAllBeofreShutdown() {
         throw new Error("Method not implemented.");
     }
 
-    // Mantieni la struttura base dall'old, ma implementa:
-    // - executeFileWrite(operation)
-    // - executeDirCreate(operation) 
-    // - executeShellExec(operation)
-    // - executeCodeExec(operation)
+    private async executeOperation(operation: BatchOperation, workdir: string): Promise<OperationResult> {
+        switch (operation.type) {
+            case 'file_write':
+                return await executeFileWrite(operation, workdir);
+            case 'dir_create':
+                return await executeDirCreate(operation, workdir);
+            case 'shell_exec':
+                return await executeShellExec(operation, workdir);
+            case 'code_exec':
+                return await executeCodeExec(operation, workdir);
+            default:
+                throw new Error(`Unknown operation type: ${(operation as any).type}`);
+        }
+    }
 
 }
