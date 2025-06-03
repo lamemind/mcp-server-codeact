@@ -8,6 +8,8 @@ export const FileWriteOperationSchema = z.object({
     path: z.string(),
     content: z.string(),
   })),
+  workingDir: z.string()
+    .optional()
 });
 
 
@@ -24,7 +26,7 @@ const DirectoryStructureSchema: z.ZodType<DirectoryStructure> = z.lazy(() =>
 export const DirCreateOperationSchema = z.object({
   type: z.literal('dir_create'),
   structure: DirectoryStructureSchema,
-  root: z.string()
+  workingDir: z.string()
     .optional()
     .describe("Root directory for the structure, defaults to current working directory")
 });
@@ -38,7 +40,7 @@ export const ShellExecOperationSchema = z.object({
     .default('cmd')
     .optional(),
   workingDir: z.string()
-    .optional(),
+    .optional()
 });
 
 
@@ -47,7 +49,8 @@ export const CodeExecOperationSchema = z.object({
   type: z.literal('code_exec'),
   runtime: z.enum(['node', 'php', 'python']),
   code: z.string(),
-  workingDir: z.string().optional(),
+  workingDir: z.string()
+    .optional(),
 });
 
 
