@@ -11,18 +11,14 @@ export function validateOperation(config: ServerConfig, operation: BatchOperatio
     // Additional operation-specific validation could go here
 }
 
+export function validatePath(config: ServerConfig, path: string): void {
+    if (!isPathAllowed(config, path)) {
+        throw new Error(`Path not allowed: ${path}`);
+    }
+}
+
 function isPathAllowed(config: ServerConfig, testPath: string): boolean {
     return config.security.allowedPaths.some(allowedPath =>
         testPath.startsWith(allowedPath)
     );
-}
-
-export function resolveWorkdir(config: ServerConfig, workdir?: string): string {
-    const resolved = workdir || process.cwd();
-
-    if (!isPathAllowed(config, resolved)) {
-        throw new Error(`Working directory not allowed: ${resolved}`);
-    }
-
-    return resolved;
 }
