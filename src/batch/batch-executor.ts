@@ -252,8 +252,73 @@ export class BatchExecutor {
         };
     }
 
-    public async killAllBeofreShutdown() {
-        throw new Error("Method not implemented.");
+    /**
+     * Kill a specific batch by ID
+     * @param batchId The ID of the batch to kill
+     * @returns true if batch was killed, false if not found or already terminated
+     */
+    public async killBatch(batchId: string): Promise<boolean> {
+        const batch = this.getBatch(batchId);
+        
+        const terminalStatuses = new Set([BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.KILLED]);
+        if (terminalStatuses.has(batch.status)) {
+            console.error(`Cannot kill batch ${batchId}: already in terminal state ${batch.status}`);
+            return true; // Already terminated, nothing to do
+        }
+        
+        console.error(`Killing batch ${batchId}...`);
+        
+        // Kill active process if exists
+        if (batch.activeProcess) {
+            console.error(`Killing active process PID ${batch.activeProcess.pid} for batch ${batchId}`);
+            try {
+                batch.activeProcess.process.kill('SIGTERM');
+                setTimeout(() => {
+                    if (batch.activeProcess && !batch.activeProcess.process.killed) {
+                        console.error(`Force killing process PID ${batch.activeProcess.pid}`);
+                        batch.activeProcess.process.kill('SIGKILL');
+                    }
+                }, 2000);
+            } catch (error) {
+                console.error(`Error killing process for batch ${batchId}:`, error);
+            }
+        }
+        
+        // Trigger abort signal
+        batch.abortController.abort();
+        
+        // Update batch status
+        batch.status = BatchStatus.KILLED;
+        batch.error = 'Batch was manually killed';
+        batch.completedAt = new Date();
+        
+        console.error(`Batch ${batchId} killed successfully`);
+        return true;
+    }
+
+    /**
+     * Kill all active batches before server shutdown
+     */
+    public async killAllBeforeShutdown(): Promise<void> {
+        console.error(`Killing all active batches before shutdown (${this.activeBatches.size} active)...`);
+        
+        const killPromises: Promise<boolean>[] = [];
+        
+        // Collect all batch IDs to avoid modification during iteration
+        const activeBatchIds = Array.from(this.activeBatches.keys());
+        
+        // Kill each batch
+        for (const batchId of activeBatchIds) {
+            killPromises.push(this.killBatch(batchId));
+        }
+        
+        // Wait for all kills to complete
+        await Promise.allSettled(killPromises);
+        
+        // Clear the map
+        this.activeBatches.clear();
+        
+        console.error('All batches killed and cleaned up');
     }
 
     private async executeOperation(
