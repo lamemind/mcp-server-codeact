@@ -223,8 +223,33 @@ export class BatchExecutor {
         }
     }
 
-    public async awaitBatch(batchId: string, options: any): Promise<any> {
-        throw new Error("Method not implemented.");
+    public async awaitBatch(batchId: string, options: { timeout?: number }): Promise<BatchExecuteResponseSync> {
+        const batch = this.getBatch(batchId);
+        
+        // If already completed, return immediately
+        const terminalStatuses = new Set([BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.KILLED]);
+        if (terminalStatuses.has(batch.status)) {
+            return {
+                batchId: batch.id,
+                status: mapBatchStatusToAwaitStatus(batch.status),
+                operationsTotal: batch.operations.length,
+                operationsCompleted: batch.currentOperationIndex,
+                results: batch.results
+            };
+        }
+        
+        // Wait for execution promise to complete
+        if (batch.executionPromise)
+            await batch.executionPromise;
+        
+        // Return final result
+        return {
+            batchId: batch.id,
+            status: mapBatchStatusToAwaitStatus(batch.status),
+            operationsTotal: batch.operations.length,
+            operationsCompleted: batch.currentOperationIndex,
+            results: batch.results
+        };
     }
 
     public async killAllBeofreShutdown() {
