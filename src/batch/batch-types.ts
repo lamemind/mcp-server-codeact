@@ -8,6 +8,7 @@ export enum BatchStatus {
   RUNNING = 'running',
   COMPLETED = 'completed',
   FAILED = 'failed',
+  KILLED = 'killed',
   TIMEOUT = 'timeout'
 }
 
@@ -17,6 +18,7 @@ export function mapBatchStatusToAwaitStatus(status: BatchStatus): AwaitResponse[
     case BatchStatus.FAILED: return 'failed';
     case BatchStatus.RUNNING:
     case BatchStatus.QUEUED: return 'running';
+    case BatchStatus.KILLED: return 'killed';
     case BatchStatus.TIMEOUT: return 'timeout';
   }
 }
