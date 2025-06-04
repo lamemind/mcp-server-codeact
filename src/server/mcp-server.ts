@@ -29,7 +29,7 @@ export async function startMcpServer(config: ServerConfig): Promise<void> {
 
     // @ts-ignore
     mcpServer.tool(`batch-await`, "description", AwaitRequestSchema, async (args: AwaitRequest) => {
-        console.error(`Received batch execute request:`, args);
+        console.error(`Received batch await request:`, args);
         return await executor.awaitBatch(args.batchId, {
             timeout: args.timeout,
             killOnTimeout: args.killOnTimeout
@@ -40,7 +40,7 @@ export async function startMcpServer(config: ServerConfig): Promise<void> {
     await mcpServer.connect(transport);
 
     process.on('SIGINT', async () => {
-        await executor.killAllBeofreShutdown();
+        await executor.killAllBeforeShutdown();
         process.exit(0);
     });
 
