@@ -8,7 +8,7 @@ export class BatchExecutor {
     constructor(config) {
         this.activeBatches = new Map();
         this.config = config;
-        this.startCleanupTimer();
+        // this.startCleanupTimer();
     }
     registerBatch(batch) {
         if (this.activeBatches.has(batch.id))

@@ -4,7 +4,7 @@ export async function parseCliArguments() {
         configFile: '',
     };
     program
-        .argument('<config-file>', 'Json config file')
+        .argument('[config-file]', 'Json config file')
         .action((setupFile) => {
         cliArgs.configFile = setupFile;
         console.error(`Cli Args ${JSON.stringify(cliArgs)}`);

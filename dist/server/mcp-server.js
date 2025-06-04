@@ -15,6 +15,21 @@ export async function startMcpServer(config) {
             tools: {}
         }
     });
+    mcpServer.prompt(`codeact_placeholder`, {}, ({}) => ({
+        messages: [{
+                role: "user",
+                content: {
+                    type: "text",
+                    text: `this is a placeholder prompt to avoid error logs when no prompts are registered`
+                }
+            }]
+    }));
+    mcpServer.resource(`codeact_placeholder`, `placeholder://codeact`, async (uri) => ({
+        contents: [{
+                uri: uri.href,
+                text: `This is a placeholder resource to avoid error logs when no resources are registered`
+            }]
+    }));
     const executor = new BatchExecutor(config);
     // @ts-ignore
     mcpServer.tool(`batch-execute`, "description", BatchExecuteRequestSchema, async (args) => {
