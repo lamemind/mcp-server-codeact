@@ -31,8 +31,8 @@ export async function startMcpServer(config: ServerConfig): Promise<void> {
     mcpServer.tool(`batch-await`, "description", AwaitRequestSchema, async (args: AwaitRequest) => {
         console.error(`Received batch await request:`, args);
         return await executor.awaitBatch(args.batchId, {
-            timeout: args.timeout,
-            killOnTimeout: args.killOnTimeout
+            timeout: args.timeout!,
+            killOnTimeout: args.killOnTimeout!
         });
     });
 
