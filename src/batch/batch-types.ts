@@ -35,12 +35,7 @@ export interface BatchExecutionContext {
   abortController: AbortController;
 
   // Single active process (quando presente)
-  activeProcess?: {
-    pid: number;
-    operationIndex: number;
-    type: 'shell' | 'code';
-    process: ChildProcess;
-  };
+  activeProcess?: ActiveProcess;
 
   // Results & progress
   results: OperationResult[];
@@ -52,6 +47,13 @@ export interface BatchExecutionContext {
   startedAt?: Date;
   completedAt?: Date;
   timeoutHandle?: NodeJS.Timeout;
+}
+
+export interface ActiveProcess {
+  pid: number;
+  operationIndex: number;
+  type: 'shell' | 'code';
+  process: ChildProcess;
 }
 
 export function createBatchExecutionContext(request: BatchExecuteRequest): BatchExecutionContext {
