@@ -18,7 +18,7 @@ export class BatchExecutor {
 
     constructor(config: ServerConfig) {
         this.config = config;
-        this.startCleanupTimer();
+        // this.startCleanupTimer();
     }
 
     private registerBatch(batch: BatchExecutionContext): void {
