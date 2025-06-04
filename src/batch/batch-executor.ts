@@ -105,7 +105,7 @@ export class BatchExecutor {
 
                 try {
                     validateOperation(this.config, operation, operation.workingDir);
-                    lastResult = await this.executeOperation(operation);
+                    lastResult = await this.executeOperation(operation, batch, i);
 
                     lastResult.operationIndex = i;
                     batch.currentOperationIndex = i + 1;
@@ -145,20 +145,33 @@ export class BatchExecutor {
         throw new Error("Method not implemented.");
     }
 
-    private async executeOperation(operation: BatchOperation): Promise<OperationResult> {
+    private async executeOperation(
+        operation: BatchOperation,
+        batch: BatchExecutionContext,
+        operationIndex: number
+    ): Promise<OperationResult> {
+        
         switch (operation.type) {
             case 'file_write':
                 return await executeFileWrite(operation);
             case 'dir_create':
                 return await executeDirCreate(operation);
             case 'shell_exec':
-                const abortController = new AbortController();
-                const tempEmptyCallback = (process: ChildProcess, operationIndex: number) => {
-                    console.error(`Process started for operation ${operationIndex}`);
-                };
-                return await executeShellExec(operation, abortController, tempEmptyCallback);
+                return await executeShellExec(
+                    operation,
+                    batch.abortController,
+                    (process: ChildProcess, opIndex: number) => {
+                        this.registerActiveProcess(batch, process, operationIndex, 'shell');
+                    }
+                );
             case 'code_exec':
-                return await executeCodeExec(operation);
+                return await executeCodeExec(
+                    operation,
+                    batch.abortController,
+                    (process: ChildProcess, opIndex: number) => {
+                        this.registerActiveProcess(batch, process, operationIndex, 'code');
+                    }
+                );
             default:
                 throw new Error(`Unknown operation type: ${(operation as any).type}`);
         }
