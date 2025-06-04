@@ -29,7 +29,6 @@ const DEFAULT_CONFIG: ServerConfig = {
         maxOperationTimeout: 30,
         maxBatchTimeout: 300,
         allowedPaths: [process.cwd()],
-        restrictWorkingDirectory: true,
         blockedCommands: ['rm', 'del', 'format', 'shutdown', 'regedit'],
         enableSandbox: true,
     },
