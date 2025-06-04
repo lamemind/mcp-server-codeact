@@ -6,7 +6,8 @@ import { ServerConfig } from "../server/server-config-schema.js";
 import { BatchOperation } from "../types/act-operations-schema.js";
 import { BatchExecuteRequest, BatchExecuteResponseAsync, BatchExecuteResponseSync, OperationResult } from "../types/tool-batch-schema.js";
 import { validateOperation, validatePath } from "./batch-utils.js";
-import { BatchExecutionContext, BatchStatus, createBatchExecutionContext } from "./batch-types.js";
+import { ActiveProcess, BatchExecutionContext, BatchStatus, createBatchExecutionContext } from "./batch-types.js";
+import { ChildProcess } from "node:child_process";
 
 export class BatchExecutor {
 
@@ -39,9 +40,38 @@ export class BatchExecutor {
         return this.activeBatches.get(batchId)!;
     }
 
-    // Debug method to see active batches
-    public getActiveBatchCount(): number {
+    public getActiveBatchCount_forDebug(): number {
         return this.activeBatches.size;
+    }
+
+    // Process registration infrastructure
+    private registerActiveProcess(
+        batch: BatchExecutionContext,
+        process: ChildProcess,
+        operationIndex: number,
+        type: 'shell' | 'code'
+    ): void {
+        if (batch.activeProcess)
+            console.error(`Batch ${batch.id} already has an active process. Replacing.`);
+
+        batch.activeProcess = {
+            pid: process.pid!,
+            operationIndex,
+            type,
+            process
+        };
+
+        console.error(`Registered active process PID ${process.pid} for batch ${batch.id} operation ${operationIndex}`);
+    }
+
+    public getActiveProcessInfo_forDebug(batchId: string): ActiveProcess | null {
+        const batch = this.activeBatches.get(batchId);
+        if (!batch)
+            throw new Error(`Batch with ID ${batchId} is not registered.`);
+        if (!batch.activeProcess)
+            return null;
+
+        return batch.activeProcess;
     }
 
     public async executeBatch(request: BatchExecuteRequest): Promise<BatchExecuteResponseSync | BatchExecuteResponseAsync> {
@@ -67,14 +97,6 @@ export class BatchExecutor {
             batch.status = BatchStatus.RUNNING;
             batch.startedAt = new Date();
 
-            // const batchResult: BatchExecuteResponseSync = {
-            //     batchId: batch.id,
-            //     status: 'running',
-            //     operationsTotal: batch.operations.length,
-            //     operationsCompleted: 0,
-            //     results: []
-            // };
-
             let lastResult: OperationResult | null = null;
 
             for (let i = 0; i < batch.operations.length; i++) {
@@ -86,28 +108,22 @@ export class BatchExecutor {
                     lastResult = await this.executeOperation(operation);
 
                     lastResult.operationIndex = i;
-                    // batchResult.results.push(result);
-                    batch.results.push(lastResult);
                     batch.currentOperationIndex = i + 1;
-
+                    batch.activeProcess = undefined;
                     if (lastResult.status === 'error')
                         break;
 
                 } catch (error) {
                     lastResult = {
-                        operationIndex: i,
-                        status: 'error',
+                        operationIndex: i, status: 'error',
                         error: error instanceof Error ? error.message : String(error)
                     } as OperationResult;
-                    // batchResult.results.push(errorResult);
-                    batch.results.push(lastResult);
-                    // batch.currentOperationIndex = i + 1;
                     break;
+                } finally {
+                    batch.results.push(lastResult!);
+                    batch.activeProcess = undefined;
                 }
             }
-
-            // batchResult.operationsCompleted = batchResult.results.filter(r => r.status !== 'error').length;
-            // batchResult.status = batchResult.operationsCompleted === batch.operations.length ? 'completed' : 'failed';
 
             batch.status = lastResult?.status === 'success' ? BatchStatus.COMPLETED : BatchStatus.FAILED;
             batch.completedAt = new Date();
