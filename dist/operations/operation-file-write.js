@@ -3,7 +3,7 @@ import { dirname, resolve, isAbsolute } from 'path';
 export async function executeFileWrite(operation) {
     for (const [, file] of operation.files.entries()) {
         try {
-            writeSingleFile(file, operation.workingDir);
+            await writeSingleFile(file, operation.workingDir);
         }
         catch (error) {
             return {
@@ -20,11 +20,10 @@ export async function executeFileWrite(operation) {
     };
 }
 async function writeSingleFile(file, workdir) {
-    // Resolve path: absolute paths as-is, relative paths from workdir
     const fullPath = isAbsolute(file.path) ? file.path : resolve(workdir, file.path);
+    console.error(`Writing file to: ${fullPath}`);
     if (!fullPath.startsWith(workdir))
         throw new Error(`Invalid file path: ${file.path} is outside the work directory.`);
-    // Ensure directory exists
     const directory = dirname(fullPath);
     await mkdir(directory, { recursive: true });
     // Write file content
