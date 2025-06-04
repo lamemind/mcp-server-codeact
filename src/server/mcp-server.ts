@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ServerConfig } from "./server-config-schema.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { BatchExecuteRequestSchema, BatchExecuteRequest, AwaitRequest } from "../types/tool-batch-schema.js";
+import { BatchExecuteRequestSchema, BatchExecuteRequest, AwaitRequest, AwaitRequestSchema } from "../types/tool-batch-schema.js";
 import { BatchExecutor } from "../batch/batch-executor.js";
 
 export async function startMcpServer(config: ServerConfig): Promise<void> {
@@ -28,7 +28,7 @@ export async function startMcpServer(config: ServerConfig): Promise<void> {
     });
 
     // @ts-ignore
-    mcpServer.tool(`batch-await`, "description", BatchExecuteRequestSchema, async (args: AwaitRequest) => {
+    mcpServer.tool(`batch-await`, "description", AwaitRequestSchema, async (args: AwaitRequest) => {
         console.error(`Received batch execute request:`, args);
         return await executor.awaitBatch(args.batchId, {
             timeout: args.timeout,
