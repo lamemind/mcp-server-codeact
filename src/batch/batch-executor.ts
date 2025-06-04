@@ -152,7 +152,11 @@ export class BatchExecutor {
             case 'dir_create':
                 return await executeDirCreate(operation);
             case 'shell_exec':
-                return await executeShellExec(operation);
+                const abortController = new AbortController();
+                const tempEmptyCallback = (process: ChildProcess, operationIndex: number) => {
+                    console.error(`Process started for operation ${operationIndex}`);
+                };
+                return await executeShellExec(operation, abortController, tempEmptyCallback);
             case 'code_exec':
                 return await executeCodeExec(operation);
             default:
