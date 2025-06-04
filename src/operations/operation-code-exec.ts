@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import { writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
@@ -23,13 +23,25 @@ const RUNTIME_CONFIGS = {
   }
 };
 
-export async function executeCodeExec(operation: CodeExecOperation): Promise<OperationResult> {
+export async function executeCodeExec(
+  operation: CodeExecOperation,
+  abortController: AbortController,
+  onProcessStart: (process: ChildProcess, operationIndex: number) => void
+): Promise<OperationResult> {
   let tempFilePath: string | null = null;
 
   try {
     const runtime = RUNTIME_CONFIGS[operation.runtime];
     if (!runtime) {
       throw new Error(`Unsupported runtime: ${operation.runtime}`);
+    }
+
+    if (abortController?.signal.aborted) {
+      return {
+        operationIndex: -1,
+        status: 'error',
+        error: 'Operation was aborted before execution'
+      };
     }
 
     // Create temporary file
@@ -43,7 +55,9 @@ export async function executeCodeExec(operation: CodeExecOperation): Promise<Ope
       runtime.command,
       tempFilePath,
       operation.workingDir!,
-      runtime.timeout
+      runtime.timeout,
+      abortController,
+      (process) => onProcessStart(process, 0)
     );
 
     return {
@@ -59,7 +73,7 @@ export async function executeCodeExec(operation: CodeExecOperation): Promise<Ope
       error: error instanceof Error ? error.message : String(error)
     };
   } finally {
-    // Cleanup temporary file
+    // Cleanup temporary file (anche in caso di abort)
     if (tempFilePath) {
       try {
         await unlink(tempFilePath);
@@ -74,7 +88,9 @@ function executeCodeFile(
   command: string,
   filePath: string,
   workdir: string,
-  timeout: number
+  timeout: number,
+  abortController: AbortController,
+  onProcessStart: (process: ChildProcess) => void
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const process = spawn(command, [filePath], {
@@ -82,8 +98,25 @@ function executeCodeFile(
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
+    onProcessStart(process);
+
     let stdout = '';
     let stderr = '';
+    let isAborted = false;
+
+    // Handle abort signal
+    const onAbort = () => {
+      isAborted = true;
+      process.kill('SIGTERM');
+      reject(new Error('Code execution was aborted'));
+    };
+
+    if (abortController.signal.aborted) {
+      process.kill('SIGTERM');
+      reject(new Error('Code execution was aborted'));
+      return;
+    }
+    abortController.signal.addEventListener('abort', onAbort);
 
     process.stdout?.on('data', (data) => {
       stdout += data.toString();
@@ -94,6 +127,10 @@ function executeCodeFile(
     });
 
     process.on('close', (code) => {
+      abortController.signal.removeEventListener('abort', onAbort);
+      if (isAborted)
+        return; // Promise già rejected in onAbort
+
       if (code === 0) {
         resolve(stdout);
       } else {
@@ -102,15 +139,20 @@ function executeCodeFile(
     });
 
     process.on('error', (error) => {
-      reject(new Error(`Failed to start ${command}: ${error.message}`));
+      abortController.signal.removeEventListener('abort', onAbort);
+      if (!isAborted)
+        reject(new Error(`Failed to start ${command}: ${error.message}`));
     });
 
-    // Timeout handling
+    // Timeout handling (manteniamo il comportamento esistente)
     const timeoutId = setTimeout(() => {
-      process.kill('SIGTERM');
-      reject(new Error(`Code execution timeout after ${timeout}ms`));
+      if (!isAborted) {
+        process.kill('SIGTERM');
+        reject(new Error(`Code execution timeout after ${timeout}ms`));
+      }
     }, timeout);
 
+    // Clear timeout when process ends
     process.on('close', () => {
       clearTimeout(timeoutId);
     });
