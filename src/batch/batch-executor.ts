@@ -78,7 +78,7 @@ export class BatchExecutor {
         const batchContext = createBatchExecutionContext(request);
         validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
-        
+
         if (batchContext.sync) {
             await this.executeBatchSync(batchContext);
             // Note: executeBatchSync unregisters the batch at the end
@@ -144,7 +144,7 @@ export class BatchExecutor {
     public async executeBatchAsync(batch: BatchExecutionContext): Promise<BatchExecuteResponseAsync> {
         // Start background execution
         batch.executionPromise = this.executeAsyncBackground(batch);
-        
+
         // Return immediately
         batch.status = BatchStatus.QUEUED;
         return {
@@ -181,7 +181,7 @@ export class BatchExecutor {
                     batch.currentOperationIndex = i + 1;
                     batch.results.push(lastResult);
                     batch.activeProcess = undefined;
-                    
+
                     console.error(`Batch ${batch.id}: completed operation ${i + 1}/${batch.operations.length}`);
 
                     if (lastResult.status === 'error') {
@@ -207,7 +207,7 @@ export class BatchExecutor {
                 batch.status = (lastResult?.status === 'success' && batch.currentOperationIndex === batch.operations.length) ? BatchStatus.COMPLETED : BatchStatus.FAILED;
             }
             batch.completedAt = new Date();
-            
+
             console.error(`Batch ${batch.id} finished with status: ${batch.status}`);
             return batch.results;
 
@@ -217,7 +217,7 @@ export class BatchExecutor {
             batch.error = error instanceof Error ? error.message : String(error);
             batch.completedAt = new Date();
             batch.activeProcess = undefined;
-            
+
             console.error(`Batch ${batch.id} failed with unexpected error:`, error);
             return batch.results;
         }
@@ -225,7 +225,7 @@ export class BatchExecutor {
 
     public async awaitBatch(batchId: string, options: { timeout?: number }): Promise<BatchExecuteResponseSync> {
         const batch = this.getBatch(batchId);
-        
+
         // If already completed, return immediately
         const terminalStatuses = new Set([BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.KILLED]);
         if (terminalStatuses.has(batch.status)) {
@@ -237,11 +237,11 @@ export class BatchExecutor {
                 results: batch.results
             };
         }
-        
+
         // Wait for execution promise to complete
         if (batch.executionPromise)
             await batch.executionPromise;
-        
+
         // Return final result
         return {
             batchId: batch.id,
@@ -259,39 +259,35 @@ export class BatchExecutor {
      */
     public async killBatch(batchId: string): Promise<boolean> {
         const batch = this.getBatch(batchId);
-        
+
         const terminalStatuses = new Set([BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.KILLED]);
         if (terminalStatuses.has(batch.status)) {
             console.error(`Cannot kill batch ${batchId}: already in terminal state ${batch.status}`);
             return true; // Already terminated, nothing to do
         }
-        
+
         console.error(`Killing batch ${batchId}...`);
-        
+
         // Kill active process if exists
         if (batch.activeProcess) {
             console.error(`Killing active process PID ${batch.activeProcess.pid} for batch ${batchId}`);
-            try {
-                batch.activeProcess.process.kill('SIGTERM');
-                setTimeout(() => {
-                    if (batch.activeProcess && !batch.activeProcess.process.killed) {
-                        console.error(`Force killing process PID ${batch.activeProcess.pid}`);
-                        batch.activeProcess.process.kill('SIGKILL');
-                    }
-                }, 2000);
-            } catch (error) {
-                console.error(`Error killing process for batch ${batchId}:`, error);
-            }
+            batch.activeProcess.process.kill('SIGTERM');
+            setTimeout(() => {
+                if (batch.activeProcess && !batch.activeProcess.process.killed) {
+                    console.error(`Force killing process PID ${batch.activeProcess.pid}`);
+                    batch.activeProcess.process.kill('SIGKILL');
+                }
+            }, 2000);
         }
-        
+
         // Trigger abort signal
         batch.abortController.abort();
-        
+
         // Update batch status
         batch.status = BatchStatus.KILLED;
         batch.error = 'Batch was manually killed';
         batch.completedAt = new Date();
-        
+
         console.error(`Batch ${batchId} killed successfully`);
         return true;
     }
@@ -301,23 +297,23 @@ export class BatchExecutor {
      */
     public async killAllBeforeShutdown(): Promise<void> {
         console.error(`Killing all active batches before shutdown (${this.activeBatches.size} active)...`);
-        
+
         const killPromises: Promise<boolean>[] = [];
-        
+
         // Collect all batch IDs to avoid modification during iteration
         const activeBatchIds = Array.from(this.activeBatches.keys());
-        
+
         // Kill each batch
         for (const batchId of activeBatchIds) {
             killPromises.push(this.killBatch(batchId));
         }
-        
+
         // Wait for all kills to complete
         await Promise.allSettled(killPromises);
-        
+
         // Clear the map
         this.activeBatches.clear();
-        
+
         console.error('All batches killed and cleaned up');
     }
 
@@ -326,7 +322,7 @@ export class BatchExecutor {
         batch: BatchExecutionContext,
         operationIndex: number
     ): Promise<OperationResult> {
-        
+
         switch (operation.type) {
             case 'file_write':
                 return await executeFileWrite(operation);
