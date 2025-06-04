@@ -13,6 +13,7 @@ export class BatchExecutor {
 
     private config: ServerConfig;
     private activeBatches: Map<string, BatchExecutionContext> = new Map();
+    // @ts-ignore
     private cleanupInterval: NodeJS.Timeout;
 
     constructor(config: ServerConfig) {
