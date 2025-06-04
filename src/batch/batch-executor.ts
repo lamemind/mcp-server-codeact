@@ -13,9 +13,11 @@ export class BatchExecutor {
 
     private config: ServerConfig;
     private activeBatches: Map<string, BatchExecutionContext> = new Map();
+    private cleanupInterval: NodeJS.Timeout;
 
     constructor(config: ServerConfig) {
         this.config = config;
+        this.startCleanupTimer();
     }
 
     private registerBatch(batch: BatchExecutionContext): void {
@@ -128,7 +130,8 @@ export class BatchExecutor {
                     } as OperationResult;
                     break;
                 } finally {
-                    batch.results.push(lastResult!);
+                    if (lastResult)
+                        batch.results.push(lastResult);
                     batch.activeProcess = undefined;
                 }
             }
@@ -223,11 +226,11 @@ export class BatchExecutor {
         }
     }
 
-    public async awaitBatch(batchId: string, options: { timeout?: number }): Promise<BatchExecuteResponseSync> {
+    public async awaitBatch(batchId: string, options: { timeout: number; killOnTimeout: boolean }): Promise<BatchExecuteResponseSync> {
         const batch = this.getBatch(batchId);
 
         // If already completed, return immediately
-        const terminalStatuses = new Set([BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.KILLED]);
+        const terminalStatuses = new Set([BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.KILLED, BatchStatus.TIMEOUT]);
         if (terminalStatuses.has(batch.status)) {
             return {
                 batchId: batch.id,
@@ -238,9 +241,51 @@ export class BatchExecutor {
             };
         }
 
-        // Wait for execution promise to complete
-        if (batch.executionPromise)
-            await batch.executionPromise;
+        // Wait for execution promise to complete with optional timeout
+        if (batch.executionPromise) {
+            const timeout = options.timeout && options.timeout > 0 ? options.timeout * 1000 : undefined;
+
+            if (timeout) {
+                // Race between batch completion and timeout
+                const timeoutPromise = new Promise<void>((_, reject) => {
+                    setTimeout(() => {
+                        reject(new Error(`Batch await timeout after ${options.timeout} seconds`));
+                    }, timeout);
+                });
+
+                try {
+                    await Promise.race([batch.executionPromise, timeoutPromise]);
+                } catch (error) {
+                    // Handle timeout
+                    if (error instanceof Error && error.message.includes('Batch await timeout')) {
+                        console.error(`Batch ${batchId} await timed out after ${options.timeout} seconds`);
+
+                        if (options.killOnTimeout) {
+                            console.error(`Killing batch ${batchId} due to timeout`);
+                            await this.killBatch(batchId);
+                            // Update batch status to timeout
+                            batch.status = BatchStatus.TIMEOUT;
+                            batch.error = `Batch killed due to await timeout (${options.timeout}s)`;
+                            batch.completedAt = new Date();
+                        } else {
+                            // Just return timeout status without killing
+                            return {
+                                batchId: batch.id,
+                                status: 'running',
+                                operationsTotal: batch.operations.length,
+                                operationsCompleted: batch.currentOperationIndex,
+                                results: batch.results
+                            };
+                        }
+                    } else {
+                        throw error; // Re-throw non-timeout errors
+                    }
+                }
+            } else {
+                // No timeout, wait indefinitely
+                await batch.executionPromise;
+            }
+        }
 
         // Return final result
         return {
@@ -293,10 +338,91 @@ export class BatchExecutor {
     }
 
     /**
+     * Start the cleanup timer for old batches
+     */
+    private startCleanupTimer(): void {
+        const intervalMs = this.config.cleanupInterval * 1000; // Convert to milliseconds
+        console.error(`Starting batch cleanup timer with interval: ${this.config.cleanupInterval}s`);
+
+        this.cleanupInterval = setInterval(() => {
+            this.cleanupOldBatches();
+        }, intervalMs);
+    }
+
+    /**
+     * Cleanup old completed batches to prevent memory leaks
+     */
+    private cleanupOldBatches(): void {
+        const now = new Date();
+        const maxAge = this.config.cleanupInterval * 2 * 1000; // Keep batches for 2x cleanup interval
+        const terminalStatuses = new Set([BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.KILLED, BatchStatus.TIMEOUT]);
+
+        let cleanedCount = 0;
+        const toDelete: string[] = [];
+
+        for (const [batchId, batch] of this.activeBatches.entries()) {
+            // Only cleanup terminal batches
+            if (!terminalStatuses.has(batch.status)) {
+                continue;
+            }
+
+            // Check age
+            const completedTime = batch.completedAt || batch.createdAt;
+            const ageMs = now.getTime() - completedTime.getTime();
+
+            if (ageMs > maxAge) {
+                toDelete.push(batchId);
+            }
+        }
+
+        // Delete old batches
+        for (const batchId of toDelete) {
+            this.activeBatches.delete(batchId);
+            cleanedCount++;
+        }
+
+        if (cleanedCount > 0) {
+            console.error(`Cleaned up ${cleanedCount} old batches. Active batches: ${this.activeBatches.size}`);
+        }
+
+        // Also check if we exceed max history limit
+        const completedBatches = Array.from(this.activeBatches.values())
+            .filter(batch => terminalStatuses.has(batch.status))
+            .sort((a, b) => (b.completedAt || b.createdAt).getTime() - (a.completedAt || a.createdAt).getTime());
+
+        if (completedBatches.length > this.config.maxBatchHistory) {
+            const excessCount = completedBatches.length - this.config.maxBatchHistory;
+            const toDeleteByLimit = completedBatches.slice(-excessCount);
+
+            for (const batch of toDeleteByLimit) {
+                this.activeBatches.delete(batch.id);
+                cleanedCount++;
+            }
+
+            if (excessCount > 0) {
+                console.error(`Removed ${excessCount} batches due to history limit. Active batches: ${this.activeBatches.size}`);
+            }
+        }
+    }
+
+    /**
+     * Stop the cleanup timer
+     */
+    private stopCleanupTimer(): void {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            console.error('Stopped batch cleanup timer');
+        }
+    }
+
+    /**
      * Kill all active batches before server shutdown
      */
     public async killAllBeforeShutdown(): Promise<void> {
         console.error(`Killing all active batches before shutdown (${this.activeBatches.size} active)...`);
+
+        // Stop cleanup timer
+        this.stopCleanupTimer();
 
         const killPromises: Promise<boolean>[] = [];
 
