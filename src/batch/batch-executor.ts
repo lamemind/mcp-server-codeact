@@ -6,7 +6,7 @@ import { ServerConfig } from "../server/server-config-schema.js";
 import { BatchOperation } from "../types/act-operations-schema.js";
 import { BatchExecuteRequest, BatchExecuteResponseAsync, BatchExecuteResponseSync, OperationResult } from "../types/tool-batch-schema.js";
 import { validateOperation, validatePath } from "./batch-utils.js";
-import { ActiveProcess, BatchExecutionContext, BatchStatus, createBatchExecutionContext } from "./batch-types.js";
+import { ActiveProcess, BatchExecutionContext, BatchStatus, createBatchExecutionContext, mapBatchStatusToAwaitStatus } from "./batch-types.js";
 import { ChildProcess } from "node:child_process";
 
 export class BatchExecutor {
@@ -78,16 +78,19 @@ export class BatchExecutor {
         const batchContext = createBatchExecutionContext(request);
         validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
+        
         if (batchContext.sync) {
             await this.executeBatchSync(batchContext);
+            // Note: executeBatchSync unregisters the batch at the end
             return {
                 batchId: batchContext.id,
-                status: batchContext.status,
+                status: mapBatchStatusToAwaitStatus(batchContext.status),
                 operationsTotal: batchContext.operations.length,
                 operationsCompleted: batchContext.currentOperationIndex,
                 results: batchContext.results
             } as BatchExecuteResponseSync;
         } else {
+            // Async: batch remains registered for later await
             return await this.executeBatchAsync(batchContext);
         }
     }
@@ -110,8 +113,13 @@ export class BatchExecutor {
                     lastResult.operationIndex = i;
                     batch.currentOperationIndex = i + 1;
                     batch.activeProcess = undefined;
-                    if (lastResult.status === 'error')
+
+                    console.error(`Batch ${batch.id}: completed operation ${i + 1}/${batch.operations.length}`);
+
+                    if (lastResult.status === 'error') {
+                        console.error(`Batch ${batch.id}: operation ${i} failed, stopping batch`);
                         break;
+                    }
 
                 } catch (error) {
                     lastResult = {
@@ -125,7 +133,7 @@ export class BatchExecutor {
                 }
             }
 
-            batch.status = lastResult?.status === 'success' ? BatchStatus.COMPLETED : BatchStatus.FAILED;
+            batch.status = (lastResult?.status === 'success' && batch.currentOperationIndex === batch.operations.length) ? BatchStatus.COMPLETED : BatchStatus.FAILED;
             batch.completedAt = new Date();
 
         } finally {
@@ -134,7 +142,85 @@ export class BatchExecutor {
     }
 
     public async executeBatchAsync(batch: BatchExecutionContext): Promise<BatchExecuteResponseAsync> {
-        throw new Error("Method not implemented.");
+        // Start background execution
+        batch.executionPromise = this.executeAsyncBackground(batch);
+        
+        // Return immediately
+        batch.status = BatchStatus.QUEUED;
+        return {
+            batchId: batch.id,
+            status: 'queued'
+        };
+    }
+
+    private async executeAsyncBackground(batch: BatchExecutionContext): Promise<OperationResult[]> {
+        try {
+            batch.status = BatchStatus.RUNNING;
+            batch.startedAt = new Date();
+            console.error(`Started async execution for batch ${batch.id}`);
+
+            let lastResult: OperationResult | null = null;
+
+            for (let i = 0; i < batch.operations.length; i++) {
+                // Check if batch was aborted
+                if (batch.abortController.signal.aborted) {
+                    console.error(`Batch ${batch.id} was aborted at operation ${i}`);
+                    batch.status = BatchStatus.KILLED;
+                    batch.error = 'Batch execution was aborted';
+                    break;
+                }
+
+                const operation = batch.operations[i];
+                operation.workingDir = operation.workingDir || batch.workingDir;
+
+                try {
+                    validateOperation(this.config, operation, operation.workingDir);
+                    lastResult = await this.executeOperation(operation, batch, i);
+
+                    lastResult.operationIndex = i;
+                    batch.currentOperationIndex = i + 1;
+                    batch.results.push(lastResult);
+                    batch.activeProcess = undefined;
+                    
+                    console.error(`Batch ${batch.id}: completed operation ${i + 1}/${batch.operations.length}`);
+
+                    if (lastResult.status === 'error') {
+                        console.error(`Batch ${batch.id}: operation ${i} failed, stopping batch`);
+                        break;
+                    }
+
+                } catch (error) {
+                    lastResult = {
+                        operationIndex: i,
+                        status: 'error',
+                        error: error instanceof Error ? error.message : String(error)
+                    } as OperationResult;
+                    batch.results.push(lastResult);
+                    batch.activeProcess = undefined;
+                    console.error(`Batch ${batch.id}: operation ${i} threw exception:`, error);
+                    break;
+                }
+            }
+
+            // Update final status
+            if (batch.status !== BatchStatus.KILLED) { // Not already set by abort
+                batch.status = (lastResult?.status === 'success' && batch.currentOperationIndex === batch.operations.length) ? BatchStatus.COMPLETED : BatchStatus.FAILED;
+            }
+            batch.completedAt = new Date();
+            
+            console.error(`Batch ${batch.id} finished with status: ${batch.status}`);
+            return batch.results;
+
+        } catch (error) {
+            // Unexpected error in batch execution
+            batch.status = BatchStatus.FAILED;
+            batch.error = error instanceof Error ? error.message : String(error);
+            batch.completedAt = new Date();
+            batch.activeProcess = undefined;
+            
+            console.error(`Batch ${batch.id} failed with unexpected error:`, error);
+            return batch.results;
+        }
     }
 
     public async awaitBatch(batchId: string, options: any): Promise<any> {
