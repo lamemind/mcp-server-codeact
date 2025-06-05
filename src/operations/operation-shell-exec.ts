@@ -72,7 +72,7 @@ export async function executeShellExec(
         operationIndex: -1,
         status: 'success',
         output: sessionResult.commands,
-        finalWorkingDir: sessionResult.finalWorkingDirectory || operation.workingDir
+        finalWorkingDir: sessionResult.finalWorkingDirectory
       };
 
     } finally {
