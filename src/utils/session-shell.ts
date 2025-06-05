@@ -221,7 +221,7 @@ export class SessionShell {
                     };
 
                     // Determina se c'è stato un errore
-                    if (exitCode !== 0 || errorMessage || errorOutput.trim()) {
+                    if (exitCode !== 0 || errorMessage) {
                         result.error = errorMessage || errorOutput.trim() || `Command exited with code ${exitCode}`;
                     }
 
