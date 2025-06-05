@@ -10,9 +10,8 @@ export async function executeShellExec(operation, abortController, onProcessStar
     try {
         const shell = operation.shell || 'cmd';
         const shellType = SHELL_TYPE_MAPPING[shell];
-        if (!shellType) {
+        if (!shellType)
             throw new Error(`Unsupported shell: ${shell}`);
-        }
         if (abortController?.signal.aborted) {
             return {
                 operationIndex: -1,
