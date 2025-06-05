@@ -30,7 +30,7 @@ async function writeSingleFile(file: { path: string, content: string }, workdir:
   console.error(`Writing file to: ${fullPath}`);
 
   if (!fullPath.startsWith(workdir))
-    throw new Error(`Invalid file path: ${file.path} is outside the work directory.`);
+    throw new Error(`Invalid file path: ${file.path} is outside the work directory ${workdir}.`);
 
   const directory = dirname(fullPath);
   await mkdir(directory, { recursive: true });
