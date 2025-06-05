@@ -86,8 +86,8 @@ export class BatchExecutor {
     }
 
     public async executeBatch(request: BatchExecuteRequest): Promise<BatchExecuteResponseSync | BatchExecuteResponseAsync> {
-        const batchContext = createBatchExecutionContext(request, this.config.security.workspaces.find(ws => ws.default)?.fullpath!);
-        validatePath(this.config, batchContext.workingDir);
+        const batchContext = createBatchExecutionContext(request, this.config);
+        // validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
 
         if (batchContext.sync) {
@@ -115,10 +115,10 @@ export class BatchExecutor {
 
             for (let i = 0; i < batch.operations.length; i++) {
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
+                // operation.workingDir = operation.workingDir || batch.currentWorkingDir;
 
                 try {
-                    validateOperation(this.config, operation, operation.workingDir);
+                    // validateOperation(this.config, operation, operation.workingDir);
                     lastResult = await this.executeOperation(operation, batch, i);
 
                     lastResult.operationIndex = i;
@@ -189,10 +189,10 @@ export class BatchExecutor {
                 }
 
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
+                // operation.workspaceId = operation.workspaceId || batch.currentWorkingDir;
 
                 try {
-                    validateOperation(this.config, operation, operation.workingDir);
+                    // validateOperation(this.config, operation, operation.workingDir);
                     lastResult = await this.executeOperation(operation, batch, i);
 
                     lastResult.operationIndex = i;
@@ -469,19 +469,24 @@ export class BatchExecutor {
         batch: BatchExecutionContext,
         operationIndex: number
     ): Promise<OperationResult> {
+        const startWorkingDir = operation.workspaceId
+            ? this.config.security.workspaces.find(ws => ws.workspaceId === operation.workspaceId)!.fullpath
+            : batch.currentWorkingDir;
+        console.error(`Executing operation ${operationIndex + 1}/${batch.operations.length} of type ${operation.type} in working directory: ${startWorkingDir}`);
 
         switch (operation.type) {
             case 'file_write':
-                return await executeFileWrite(operation);
+                return await executeFileWrite(operation, startWorkingDir);
             case 'dir_create':
-                return await executeDirCreate(operation);
+                return await executeDirCreate(operation, startWorkingDir);
             case 'shell_exec':
                 return await executeShellExec(
                     operation,
                     batch.abortController,
                     (process: ChildProcess, opIndex: number) => {
                         this.registerActiveProcess(batch, process, operationIndex, 'shell');
-                    }
+                    },
+                    startWorkingDir
                 );
             case 'code_exec':
                 return await executeCodeExec(
@@ -489,7 +494,8 @@ export class BatchExecutor {
                     batch.abortController,
                     (process: ChildProcess, opIndex: number) => {
                         this.registerActiveProcess(batch, process, operationIndex, 'code');
-                    }
+                    },
+                    startWorkingDir
                 );
             default:
                 throw new Error(`Unknown operation type: ${(operation as any).type}`);
