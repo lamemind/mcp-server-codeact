@@ -26,12 +26,14 @@ export interface SessionResult {
 export class SessionShell {
     private process: ChildProcess | null = null;
     private shellType: ShellType;
+    private startWorkingDir: string;
     private timeout: number;
     private timeoutHandle: NodeJS.Timeout | null = null;
     private sessionStartTime: number = 0;
 
-    constructor(shellType: ShellType, timeoutMs: number) {
+    constructor(shellType: ShellType, startWorkingDir: string, timeoutMs: number) {
         this.shellType = shellType;
+        this.startWorkingDir = startWorkingDir;
         this.timeout = timeoutMs;
     }
 
@@ -123,7 +125,8 @@ export class SessionShell {
                     ...process.env,
                     TERM: 'dumb',  // Evita controlli ANSI
                     PS1: '$ ',     // Prompt semplice per bash/zsh
-                }
+                },
+                cwd: this.startWorkingDir
             });
 
             if (!this.process.stdin || !this.process.stdout || !this.process.stderr) {
