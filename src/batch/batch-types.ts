@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { AwaitResponse, BatchExecuteRequest, OperationResult } from "../types/tool-batch-schema.js";
 import { ChildProcess } from "node:child_process";
+import { ServerConfig, WorkspaceConfig } from "../server/server-config-schema.js";
 
 // Batch state for internal management
 export enum BatchStatus {
@@ -29,7 +30,7 @@ export interface BatchExecutionContext {
   status: BatchStatus;
   request: BatchExecuteRequest;
   operations: BatchExecuteRequest['operations'];
-  workingDir: string;
+  workspace: WorkspaceConfig;
   currentWorkingDir: string;
 
   // Execution tracking
@@ -59,15 +60,17 @@ export interface ActiveProcess {
   process: ChildProcess;
 }
 
-export function createBatchExecutionContext(request: BatchExecuteRequest, fallbackWorkdir: string): BatchExecutionContext {
-  const workingDir = request.workdir || fallbackWorkdir;
+export function createBatchExecutionContext(request: BatchExecuteRequest, config: ServerConfig): BatchExecutionContext {
+  const defaultWorkspace = config.security.workspaces.find(ws => ws.default)!;
+  const workspaceId = request.workspace || defaultWorkspace.workspaceId;
+  const workspace = config.security.workspaces.find(ws => ws.workspaceId === workspaceId)!;
   return {
     id: randomUUID(),
     status: BatchStatus.QUEUED,
     request,
     operations: request.operations,
-    workingDir,
-    currentWorkingDir: workingDir,
+    workspace,
+    currentWorkingDir: workspace.fullpath,
 
     sync: request.sync,
     executionPromise: undefined,
