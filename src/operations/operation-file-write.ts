@@ -3,11 +3,11 @@ import { dirname, resolve, isAbsolute } from 'path';
 import { FileWriteOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
 
-export async function executeFileWrite(operation: FileWriteOperation): Promise<OperationResult> {
+export async function executeFileWrite(operation: FileWriteOperation, startWorkingDir: string): Promise<OperationResult> {
 
   for (const [, file] of operation.files.entries()) {
     try {
-      await writeSingleFile(file, operation.workingDir!);
+      await writeSingleFile(file, startWorkingDir);
 
     } catch (error) {
       return {
