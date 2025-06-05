@@ -49,7 +49,7 @@ export async function startMcpServer(config: ServerConfig): Promise<void> {
 
     const BatchExecuteToolDefinition = {
         name: 'batch-execute',
-        description: 'Fetch economic calendar events for a specific date or range of dates.',
+        description: 'Execute a batch of operations in the configured workspace.',
         inputSchema: zodToJsonSchema(BatchExecuteRequestSchema)
     };
     async function BatchExecuteMcpHandler(args: unknown): Promise<any> {
