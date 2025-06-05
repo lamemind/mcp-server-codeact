@@ -136,6 +136,7 @@ export class SessionShell {
 
             // Setup timeout globale per l'intera sessione
             this.timeoutHandle = setTimeout(() => {
+                console.error(`Session timeout after ${this.timeout}ms -> killing process`);
                 this.killProcess();
                 reject(new Error(`Session timeout after ${this.timeout}ms`));
             }, this.timeout);
@@ -175,7 +176,7 @@ export class SessionShell {
 
             const marker = this.generateMarker();
             const formattedCommand = this.formatCommandWithMarker(command, marker);
-            console.error(`Executing command: "${command.substring(0, 20)}" with marker: ${marker} (Formatted: ${formattedCommand})`);
+            console.error(`Executing command: "${command.substring(0, 20)}" with marker: ${marker} (Formatted: "${formattedCommand}")`);
 
             let output = '';
             let errorOutput = '';
@@ -183,7 +184,8 @@ export class SessionShell {
             let commandTimeout: NodeJS.Timeout;
 
             const cleanup = () => {
-                if (commandTimeout) clearTimeout(commandTimeout);
+                if (commandTimeout)
+                    clearTimeout(commandTimeout);
                 this.process!.stdout!.removeListener('data', dataHandler);
                 this.process!.stderr!.removeListener('data', errorHandler);
             };
@@ -193,6 +195,7 @@ export class SessionShell {
                     return;
 
                 const chunk = data.toString();
+                console.error(`Received data chunk: ----\n${chunk.substring(0, 500)}\n--------`);
                 output += chunk;
 
                 // Cerca il marker con pattern più robusto
@@ -227,7 +230,8 @@ export class SessionShell {
             };
 
             const errorHandler = (data: Buffer) => {
-                if (commandFinished) return;
+                if (commandFinished)
+                    return;
                 errorOutput += data.toString();
             };
 
@@ -236,6 +240,7 @@ export class SessionShell {
             const remainingTime = Math.max(1000, (this.timeout - elapsedTime) * 0.75);
 
             commandTimeout = setTimeout(() => {
+                console.error(`Command timeout after ${remainingTime}ms: ${command}`);
                 if (!commandFinished) {
                     commandFinished = true;
                     cleanup();
@@ -298,7 +303,8 @@ export class SessionShell {
 
             // Esegui ogni comando in sequenza
             for (const command of commands) {
-                if (!command.trim()) continue; // Salta comandi vuoti
+                if (!command.trim())
+                    throw new Error('Empty command found in sequence');
 
                 const result = await this.executeCommand(command.trim());
                 console.error(`Command executed: ${command} - Exit code: ${result.exitCode}`);
