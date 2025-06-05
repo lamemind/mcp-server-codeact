@@ -52,7 +52,7 @@ export async function executeShellExec(operation, abortController, onProcessStar
                 operationIndex: -1,
                 status: 'success',
                 output: sessionResult.commands,
-                finalWorkingDir: sessionResult.finalWorkingDirectory || operation.workingDir
+                finalWorkingDir: sessionResult.finalWorkingDirectory
             };
         }
         finally {

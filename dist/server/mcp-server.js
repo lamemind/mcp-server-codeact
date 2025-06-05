@@ -5,6 +5,7 @@ import { formatToolOuput, validateAndParseInput } from "../utils/mcp-utils.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import z from "zod";
 export async function startMcpServer(config) {
     console.error(`Starting MCP Server CodeAct...`);
     const mcpServer = new Server({
@@ -42,7 +43,7 @@ export async function startMcpServer(config) {
     // );
     const executor = new BatchExecutor(config);
     const BatchExecuteToolDefinition = {
-        name: 'batch-execute',
+        name: 'codeact-execute-batch',
         description: 'Execute a batch of operations in the configured workspace.',
         inputSchema: zodToJsonSchema(BatchExecuteRequestSchema)
     };
@@ -57,7 +58,7 @@ export async function startMcpServer(config) {
         }
     }
     const AwaitToolDefinition = {
-        name: 'batch-await',
+        name: 'codeact-await-batch',
         description: 'Await the result of a batch execution.',
         inputSchema: zodToJsonSchema(AwaitRequestSchema)
     };
@@ -75,19 +76,20 @@ export async function startMcpServer(config) {
         }
     }
     const ListWorkspacesToolDefinition = {
-        name: 'list-workspaces',
+        name: 'codeact-list-workspaces',
         description: 'List all configured workspaces.',
-        inputSchema: {}
+        inputSchema: zodToJsonSchema(z.object({})),
     };
-    async function ListWorkspacesMcpHandler() {
+    async function ListWorkspacesMcpHandler(args) {
         try {
-            return {
+            const res = {
                 workspaces: config.security.workspaces.map(ws => ({
                     workspaceId: ws.workspaceId,
                     fullpath: ws.fullpath,
                     default: ws.default
                 }))
             };
+            return formatToolOuput(res);
         }
         catch (error) {
             throw new McpError(ErrorCode.InternalError, `Error calling tool ${ListWorkspacesToolDefinition.name}: ${error instanceof Error ? error.message : String(error)}`);
