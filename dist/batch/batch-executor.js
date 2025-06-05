@@ -10,10 +10,10 @@ export class BatchExecutor {
         this.activeBatches = new Map();
         this.config = config;
         // this.startCleanupTimer();
-        config.security.allowedPaths.forEach(path => {
-            if (!fs.existsSync(path)) {
-                fs.mkdirSync(path, { recursive: true });
-                console.error(`Created allowed path: ${path}`);
+        config.security.workspaces.forEach(ws => {
+            if (!fs.existsSync(ws.fullpath)) {
+                fs.mkdirSync(ws.fullpath, { recursive: true });
+                console.error(`Created ${ws.fullpath}`);
             }
         });
     }
@@ -57,7 +57,7 @@ export class BatchExecutor {
         return batch.activeProcess;
     }
     async executeBatch(request) {
-        const batchContext = createBatchExecutionContext(request, this.config.security.allowedPaths[0]);
+        const batchContext = createBatchExecutionContext(request, this.config.security.workspaces.find(ws => ws.default)?.fullpath);
         validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
         if (batchContext.sync) {
@@ -83,13 +83,18 @@ export class BatchExecutor {
             let lastResult = null;
             for (let i = 0; i < batch.operations.length; i++) {
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.workingDir;
+                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
                 try {
                     validateOperation(this.config, operation, operation.workingDir);
                     lastResult = await this.executeOperation(operation, batch, i);
                     lastResult.operationIndex = i;
                     batch.currentOperationIndex = i + 1;
                     batch.activeProcess = undefined;
+                    // Update currentWorkingDir if operation returned a new working directory
+                    if (lastResult.finalWorkingDir) {
+                        batch.currentWorkingDir = lastResult.finalWorkingDir;
+                        console.error(`Batch ${batch.id}: working directory updated to ${batch.currentWorkingDir}`);
+                    }
                     console.error(`Batch ${batch.id}: completed operation ${i + 1}/${batch.operations.length}`);
                     if (lastResult.status === 'error') {
                         console.error(`Batch ${batch.id}: operation ${i} failed, stopping batch`);
@@ -141,7 +146,7 @@ export class BatchExecutor {
                     break;
                 }
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.workingDir;
+                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
                 try {
                     validateOperation(this.config, operation, operation.workingDir);
                     lastResult = await this.executeOperation(operation, batch, i);
@@ -149,6 +154,11 @@ export class BatchExecutor {
                     batch.currentOperationIndex = i + 1;
                     batch.results.push(lastResult);
                     batch.activeProcess = undefined;
+                    // Update currentWorkingDir if operation returned a new working directory
+                    if (lastResult.finalWorkingDir) {
+                        batch.currentWorkingDir = lastResult.finalWorkingDir;
+                        console.error(`Batch ${batch.id}: working directory updated to ${batch.currentWorkingDir}`);
+                    }
                     console.error(`Batch ${batch.id}: completed operation ${i + 1}/${batch.operations.length}`);
                     if (lastResult.status === 'error') {
                         console.error(`Batch ${batch.id}: operation ${i} failed, stopping batch`);

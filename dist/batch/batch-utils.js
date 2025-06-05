@@ -11,5 +11,5 @@ export function validatePath(config, path) {
     }
 }
 function isPathAllowed(config, testPath) {
-    return config.security.allowedPaths.some(allowedPath => testPath.startsWith(allowedPath));
+    return config.security.workspaces.some(ws => testPath.startsWith(ws.fullpath));
 }

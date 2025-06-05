@@ -6,6 +6,7 @@ export const OperationResultSchema = z.object({
     status: z.enum(['success', 'error']),
     output: z.any().optional(),
     error: z.string().optional(),
+    finalWorkingDir: z.string().optional(),
 });
 // Batch execute request
 export const BatchExecuteRequestSchema = z.object({

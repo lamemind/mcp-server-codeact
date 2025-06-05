@@ -20,12 +20,14 @@ export function mapBatchStatusToAwaitStatus(status) {
     }
 }
 export function createBatchExecutionContext(request, fallbackWorkdir) {
+    const workingDir = request.workdir || fallbackWorkdir;
     return {
         id: randomUUID(),
         status: BatchStatus.QUEUED,
         request,
         operations: request.operations,
-        workingDir: request.workdir || fallbackWorkdir,
+        workingDir,
+        currentWorkingDir: workingDir,
         sync: request.sync,
         executionPromise: undefined,
         abortController: new AbortController(),

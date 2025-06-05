@@ -74,15 +74,36 @@ export async function startMcpServer(config) {
             throw new McpError(ErrorCode.InternalError, `Error calling tool ${AwaitToolDefinition.name}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
+    const ListWorkspacesToolDefinition = {
+        name: 'list-workspaces',
+        description: 'List all configured workspaces.',
+        inputSchema: {}
+    };
+    async function ListWorkspacesMcpHandler() {
+        try {
+            return {
+                workspaces: config.security.workspaces.map(ws => ({
+                    workspaceId: ws.workspaceId,
+                    fullpath: ws.fullpath,
+                    default: ws.default
+                }))
+            };
+        }
+        catch (error) {
+            throw new McpError(ErrorCode.InternalError, `Error calling tool ${ListWorkspacesToolDefinition.name}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
     mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
         tools: [
             BatchExecuteToolDefinition,
             AwaitToolDefinition,
+            ListWorkspacesToolDefinition
         ],
     }));
     const MCP_TOOL_HANDLERS = {
         [BatchExecuteToolDefinition.name]: BatchExecuteMcpHandler,
-        [AwaitToolDefinition.name]: AwaitToolDefinitionMcpHandler
+        [AwaitToolDefinition.name]: AwaitToolDefinitionMcpHandler,
+        [ListWorkspacesToolDefinition.name]: ListWorkspacesMcpHandler
     };
     mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
         const handler = MCP_TOOL_HANDLERS[request.params.name];
