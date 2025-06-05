@@ -7,6 +7,8 @@ export const WorkspaceConfigSchema = z.object({
   default: z.boolean().default(false)
     .describe('If true, this is the default workspace used when no specific workspace is set')
 });
+export type WorkspaceConfig = z.infer<typeof WorkspaceConfigSchema>;
+
 export const SecurityConfigSchema = z.object({
   maxBatchSize: z.number().default(50),
   maxConcurrentBatches: z.number().default(5),
