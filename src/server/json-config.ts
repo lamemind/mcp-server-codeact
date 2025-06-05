@@ -28,7 +28,7 @@ const DEFAULT_CONFIG: ServerConfig = {
         maxConcurrentBatches: 5,
         maxOperationTimeout: 30,
         maxBatchTimeout: 300,
-        allowedPaths: [process.cwd()],
+        allowedPaths: ["C:/codeact-temp"],
         blockedCommands: ['rm', 'del', 'format', 'shutdown', 'regedit'],
         enableSandbox: true,
     },
