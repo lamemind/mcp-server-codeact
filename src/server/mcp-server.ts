@@ -3,7 +3,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { BatchExecuteRequestSchema, BatchExecuteRequest, AwaitRequest, AwaitRequestSchema } from "../types/tool-batch-schema.js";
 import { BatchExecutor } from "../batch/batch-executor.js";
 import { formatToolOuput, validateAndParseInput } from "../utils/mcp-utils.js";
-import { dump } from "../utils/regular-utils.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -63,6 +62,7 @@ export async function startMcpServer(config: ServerConfig): Promise<void> {
             throw new McpError(ErrorCode.InternalError, `Error calling tool ${BatchExecuteToolDefinition.name}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
+
     const AwaitToolDefinition = {
         name: 'batch-await',
         description: 'Await the result of a batch execution.',
@@ -82,16 +82,37 @@ export async function startMcpServer(config: ServerConfig): Promise<void> {
         }
     }
 
+    const ListWorkspacesToolDefinition = {
+        name: 'list-workspaces',
+        description: 'List all configured workspaces.',
+        inputSchema: {}
+    };
+    async function ListWorkspacesMcpHandler(): Promise<any> {
+        try {
+            return {
+                workspaces: config.security.workspaces.map(ws => ({
+                    workspaceId: ws.workspaceId,
+                    fullpath: ws.fullpath,
+                    default: ws.default
+                }))
+            };
+        } catch (error) {
+            throw new McpError(ErrorCode.InternalError, `Error calling tool ${ListWorkspacesToolDefinition.name}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
     mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
         tools: [
             BatchExecuteToolDefinition,
             AwaitToolDefinition,
+            ListWorkspacesToolDefinition
         ],
     }));
 
     const MCP_TOOL_HANDLERS = {
         [BatchExecuteToolDefinition.name]: BatchExecuteMcpHandler,
-        [AwaitToolDefinition.name]: AwaitToolDefinitionMcpHandler
+        [AwaitToolDefinition.name]: AwaitToolDefinitionMcpHandler,
+        [ListWorkspacesToolDefinition.name]: ListWorkspacesMcpHandler
     };
     mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
         const handler = MCP_TOOL_HANDLERS[request.params.name];

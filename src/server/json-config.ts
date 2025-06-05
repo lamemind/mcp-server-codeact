@@ -28,7 +28,15 @@ const DEFAULT_CONFIG: ServerConfig = {
         maxConcurrentBatches: 5,
         maxOperationTimeout: 30,
         maxBatchTimeout: 300,
-        allowedPaths: ["C:/codeact-temp"],
+        workspaces: [{
+            workspaceId: 'default',
+            fullpath: 'C:/codeact-temp',
+            default: true
+        }, {
+            workspaceId: 'another-tmp',
+            fullpath: 'C:/tmp',
+            default: false
+        }],
         blockedCommands: ['rm', 'del', 'format', 'shutdown', 'regedit'],
         enableSandbox: true,
     },

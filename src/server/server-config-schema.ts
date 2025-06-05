@@ -1,12 +1,18 @@
 import { z } from 'zod';
 
 // Configuration schemas
+export const WorkspaceConfigSchema = z.object({
+  workspaceId: z.string().describe('Unique identifier for the workspace'),
+  fullpath: z.string().describe('Full path to the workspace directory'),
+  default: z.boolean().default(false)
+    .describe('If true, this is the default workspace used when no specific workspace is set')
+});
 export const SecurityConfigSchema = z.object({
   maxBatchSize: z.number().default(50),
   maxConcurrentBatches: z.number().default(5),
   maxOperationTimeout: z.number().default(30), // seconds
   maxBatchTimeout: z.number().default(300), // seconds
-  allowedPaths: z.array(z.string()),
+  workspaces: z.array(WorkspaceConfigSchema),
   blockedCommands: z.array(z.string()).default([]),
   enableSandbox: z.boolean().default(true),
 });

@@ -21,10 +21,10 @@ export class BatchExecutor {
         this.config = config;
         // this.startCleanupTimer();
 
-        config.security.allowedPaths.forEach(path => {
-            if (!fs.existsSync(path)) {
-                fs.mkdirSync(path, { recursive: true });
-                console.error(`Created allowed path: ${path}`);
+        config.security.workspaces.forEach(ws => {
+            if (!fs.existsSync(ws.fullpath)) {
+                fs.mkdirSync(ws.fullpath, { recursive: true });
+                console.error(`Created ${ws.fullpath}`);
             }
         });
     }
@@ -86,7 +86,7 @@ export class BatchExecutor {
     }
 
     public async executeBatch(request: BatchExecuteRequest): Promise<BatchExecuteResponseSync | BatchExecuteResponseAsync> {
-        const batchContext = createBatchExecutionContext(request, this.config.security.allowedPaths[0]);
+        const batchContext = createBatchExecutionContext(request, this.config.security.workspaces.find(ws => ws.default)?.fullpath!);
         validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
 
