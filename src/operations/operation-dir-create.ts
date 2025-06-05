@@ -1,14 +1,12 @@
 import { mkdir } from 'fs/promises';
-import { resolve, isAbsolute } from 'path';
+import { resolve } from 'path';
 import { DirCreateOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
 
-export async function executeDirCreate(operation: DirCreateOperation): Promise<OperationResult> {
+export async function executeDirCreate(operation: DirCreateOperation, startWorkingDir: string): Promise<OperationResult> {
   try {
-    const rootPath = operation.workingDir!;
-
     const directoriesToCreate: string[] = [];
-    collectDirectories(operation.structure, rootPath, directoriesToCreate);
+    collectDirectories(operation.structure, startWorkingDir, directoriesToCreate);
 
     // Create all directories
     for (const dirPath of directoriesToCreate)
@@ -17,7 +15,7 @@ export async function executeDirCreate(operation: DirCreateOperation): Promise<O
     return {
       operationIndex: -1,
       status: 'success',
-      output: `Created ${directoriesToCreate.length} directories: ${directoriesToCreate.map(d => d.replace(rootPath, '')).join(', ')}`
+      output: `Created ${directoriesToCreate.length} directories: ${directoriesToCreate.map(d => d.replace(startWorkingDir, '')).join(', ')}`
     };
 
   } catch (error) {
