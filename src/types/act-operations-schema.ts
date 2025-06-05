@@ -8,9 +8,9 @@ export const FileWriteOperationSchema = z.object({
     path: z.string(),
     content: z.string(),
   })),
-  workingDir: z.string()
+  workspaceId: z.string()
     .optional()
-    .describe("Working directory for the file write operation, defaults to the batch working directory")
+    .describe("Workspace ID to write the files in, defaults to the batch workspace")
 });
 
 
@@ -27,9 +27,9 @@ const DirectoryStructureSchema: z.ZodType<DirectoryStructure> = z.lazy(() =>
 export const DirCreateOperationSchema = z.object({
   type: z.literal('dir_create'),
   structure: DirectoryStructureSchema,
-  workingDir: z.string()
+  workspaceId: z.string()
     .optional()
-    .describe("Root directory for the structure, defaults to the batch working directory")
+    .describe("Workspace ID to create the directories in, defaults to the batch workspace")
 });
 
 
@@ -40,9 +40,9 @@ export const ShellExecOperationSchema = z.object({
   shell: z.enum(['powershell', 'cmd', 'gitbash'])
     .default('cmd')
     .optional(),
-  workingDir: z.string()
+  workspaceId: z.string()
     .optional()
-    .describe("Working directory for the shell commands, defaults to the batch working directory")
+    .describe("Workspace ID to execute the shell commands in, defaults to the batch workspace"),
 });
 
 
@@ -51,9 +51,9 @@ export const CodeExecOperationSchema = z.object({
   type: z.literal('code_exec'),
   runtime: z.enum(['node', 'php', 'python']),
   code: z.string(),
-  workingDir: z.string()
+  workspaceId: z.string()
     .optional()
-    .describe("Working directory for the code execution, defaults to the batch working directory")
+    .describe("Workspace ID to execute the code in, defaults to the batch workspace"),
 });
 
 
