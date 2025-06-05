@@ -22,9 +22,8 @@ export async function executeShellExec(
     const shell = operation.shell || 'cmd';
     const shellType = SHELL_TYPE_MAPPING[shell];
 
-    if (!shellType) {
-      throw new Error(`Unsupported shell: ${shell}`);
-    }
+    if (!shellType)
+      throw new Error(`Unsupported shell: ${shell}`)
 
     if (abortController?.signal.aborted) {
       return {

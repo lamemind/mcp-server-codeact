@@ -26,8 +26,8 @@ const DEFAULT_CONFIG: ServerConfig = {
     security: {
         maxBatchSize: 50,
         maxConcurrentBatches: 5,
-        maxOperationTimeout: 30,
-        maxBatchTimeout: 300,
+        maxOperationTimeout: 300,
+        maxBatchTimeout: 3600,
         workspaces: [{
             workspaceId: 'default',
             fullpath: 'C:/codeact-temp',
@@ -41,7 +41,7 @@ const DEFAULT_CONFIG: ServerConfig = {
         enableSandbox: true,
     },
     runtimes: {
-        node: { enabled: false, command: 'node', timeout: 30 },
+        node: { enabled: true, command: 'node', timeout: 30 },
         php: { enabled: false, command: 'php', timeout: 30 },
         python: { enabled: false, command: 'python', timeout: 30 },
     },
