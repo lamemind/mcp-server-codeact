@@ -58,13 +58,13 @@ export interface ActiveProcess {
   process: ChildProcess;
 }
 
-export function createBatchExecutionContext(request: BatchExecuteRequest): BatchExecutionContext {
+export function createBatchExecutionContext(request: BatchExecuteRequest, fallbackWorkdir: string): BatchExecutionContext {
   return {
     id: randomUUID(),
     status: BatchStatus.QUEUED,
     request,
     operations: request.operations,
-    workingDir: request.workdir || process.cwd(),
+    workingDir: request.workdir || fallbackWorkdir,
 
     sync: request.sync,
     executionPromise: undefined,
