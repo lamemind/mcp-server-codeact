@@ -13,10 +13,11 @@ const SHELL_TYPE_MAPPING: Record<string, ShellType> = {
 export async function executeShellExec(
   operation: ShellExecOperation,
   abortController: AbortController,
-  onProcessStart: (process: ChildProcess, operationIndex: number) => void
+  onProcessStart: (process: ChildProcess, operationIndex: number) => void,
+  startWorkingDir: string
 ): Promise<OperationResult> {
   let sessionShell: SessionShell | null = null;
-  
+
   try {
     const shell = operation.shell || 'cmd';
     const shellType = SHELL_TYPE_MAPPING[shell];
@@ -34,8 +35,8 @@ export async function executeShellExec(
     }
 
     // Create SessionShell with 30 second timeout
-    sessionShell = new SessionShell(shellType, 30000);
-    
+    sessionShell = new SessionShell(shellType, startWorkingDir, 30000);
+
     // Handle abort signal by killing session shell
     const abortHandler = () => {
       if (sessionShell) {
@@ -43,7 +44,7 @@ export async function executeShellExec(
         // SessionShell cleanup is handled internally
       }
     };
-    
+
     if (abortController.signal.aborted) {
       return {
         operationIndex: -1,
@@ -51,18 +52,11 @@ export async function executeShellExec(
         error: 'Operation was aborted before execution'
       };
     }
-    
-    abortController.signal.addEventListener('abort', abortHandler);
-    
-    try {
-      // Set working directory by prepending cd command if needed
-      const commands = [...operation.commands];
-      if (operation.workingDir) {
-        // Insert cd command at the beginning
-        commands.unshift(`cd "${operation.workingDir}"`);
-      }
 
-      // Execute command sequence
+    abortController.signal.addEventListener('abort', abortHandler);
+
+    try {
+      const commands = [...operation.commands];
       const sessionResult = await sessionShell.executeSequence(commands);
 
       if (!sessionResult.success) {
@@ -80,7 +74,7 @@ export async function executeShellExec(
         output: sessionResult.commands,
         finalWorkingDir: sessionResult.finalWorkingDirectory || operation.workingDir
       };
-      
+
     } finally {
       abortController.signal.removeEventListener('abort', abortHandler);
     }
