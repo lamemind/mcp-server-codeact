@@ -4,11 +4,18 @@ import { executeFileWrite } from "../operations/operation-file-write.js";
 import { executeShellExec } from "../operations/operation-shell-exec.js";
 import { validateOperation, validatePath } from "./batch-utils.js";
 import { BatchStatus, createBatchExecutionContext, mapBatchStatusToAwaitStatus } from "./batch-types.js";
+import * as fs from "node:fs";
 export class BatchExecutor {
     constructor(config) {
         this.activeBatches = new Map();
         this.config = config;
         // this.startCleanupTimer();
+        config.security.allowedPaths.forEach(path => {
+            if (!fs.existsSync(path)) {
+                fs.mkdirSync(path, { recursive: true });
+                console.error(`Created allowed path: ${path}`);
+            }
+        });
     }
     registerBatch(batch) {
         if (this.activeBatches.has(batch.id))
@@ -50,7 +57,7 @@ export class BatchExecutor {
         return batch.activeProcess;
     }
     async executeBatch(request) {
-        const batchContext = createBatchExecutionContext(request);
+        const batchContext = createBatchExecutionContext(request, this.config.security.allowedPaths[0]);
         validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
         if (batchContext.sync) {

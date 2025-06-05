@@ -23,20 +23,19 @@ export async function executeShellExec(operation, abortController, onProcessStar
         for (const [index, command] of operation.commands.entries()) {
             try {
                 const output = await executeCommand(shellConfig, command, operation.workingDir, abortController, (process) => onProcessStart(process, index));
-                results.push(`Command ${index + 1}: ${output}`);
+                results.push({ success: true, output: output.output, command: command.substring(0, 10) });
             }
             catch (error) {
                 allSuccessful = false;
                 const errorMsg = error instanceof Error ? error.message : String(error);
-                results.push(`Command ${index + 1} FAILED: ${errorMsg}`);
-                if (abortController?.signal.aborted)
-                    break;
+                results.push({ success: false, error: errorMsg });
+                break;
             }
         }
         return {
             operationIndex: -1,
             status: allSuccessful ? 'success' : 'error',
-            output: results.join('\n'),
+            output: results,
             error: allSuccessful ? undefined : 'One or more commands failed'
         };
     }
@@ -50,41 +49,46 @@ export async function executeShellExec(operation, abortController, onProcessStar
 }
 function executeCommand(shellConfig, command, workdir, abortController, onProcessStart) {
     return new Promise((resolve, reject) => {
-        const process = spawn(shellConfig.cmd, [...shellConfig.args, command], { cwd: workdir, stdio: ['pipe', 'pipe', 'pipe'] });
-        onProcessStart(process);
+        const child = spawn(shellConfig.cmd, [...shellConfig.args, command], {
+            cwd: workdir,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            env: process.env
+        });
+        onProcessStart(child);
         let stdout = '';
         let stderr = '';
         let isAborted = false;
         // Handle abort signal
         const onAbort = () => {
             isAborted = true;
-            process.kill('SIGTERM');
+            child.kill('SIGTERM');
             reject(new Error('Command execution was aborted'));
         };
         if (abortController.signal.aborted) {
-            process.kill('SIGTERM');
+            child.kill('SIGTERM');
             reject(new Error('Command execution was aborted'));
             return;
         }
         abortController.signal.addEventListener('abort', onAbort);
-        process.stdout?.on('data', (data) => {
+        child.stdout?.on('data', (data) => {
             stdout += data.toString();
         });
-        process.stderr?.on('data', (data) => {
+        child.stderr?.on('data', (data) => {
             stderr += data.toString();
         });
-        process.on('close', (code) => {
+        child.on('close', (code) => {
             abortController.signal.removeEventListener('abort', onAbort);
             if (isAborted)
                 return; // Promise già rejected in onAbort
             if (code === 0) {
-                resolve(stdout || 'Command completed successfully (no output)');
+                resolve({ output: stdout || 'Command completed successfully (no output)', code });
             }
             else {
-                reject(new Error(stderr || `Command failed with exit code ${code}`));
+                const msg = `Command Failed w/ Exit code ${code} - stderr: ${stderr}`;
+                reject(new Error(msg));
             }
         });
-        process.on('error', (error) => {
+        child.on('error', (error) => {
             abortController.signal.removeEventListener('abort', onAbort);
             if (!isAborted)
                 reject(new Error(`Process error: ${error.message}`));
@@ -92,12 +96,12 @@ function executeCommand(shellConfig, command, workdir, abortController, onProces
         // 30 second timeout (manteniamo il comportamento esistente)
         const timeoutId = setTimeout(() => {
             if (!isAborted) {
-                process.kill('SIGTERM');
+                child.kill('SIGTERM');
                 reject(new Error('Command execution timeout'));
             }
         }, 30000);
         // Clear timeout when process ends
-        process.on('close', () => {
+        child.on('close', () => {
             clearTimeout(timeoutId);
         });
     });

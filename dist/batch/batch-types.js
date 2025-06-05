@@ -19,13 +19,13 @@ export function mapBatchStatusToAwaitStatus(status) {
         case BatchStatus.TIMEOUT: return 'timeout';
     }
 }
-export function createBatchExecutionContext(request) {
+export function createBatchExecutionContext(request, fallbackWorkdir) {
     return {
         id: randomUUID(),
         status: BatchStatus.QUEUED,
         request,
         operations: request.operations,
-        workingDir: request.workdir || process.cwd(),
+        workingDir: request.workdir || fallbackWorkdir,
         sync: request.sync,
         executionPromise: undefined,
         abortController: new AbortController(),
