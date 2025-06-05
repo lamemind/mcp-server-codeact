@@ -36,14 +36,16 @@ export const DirCreateOperationSchema = z.object({
 // Shell execute operation
 export const ShellExecOperationSchema = z.object({
   type: z.literal('shell_exec'),
-  commands: z.array(z.string()),
+  commands: z.array(z.string())
+    .describe("One or more shell commands to execute, each command should be a separate string"),
   shell: z.enum(['powershell', 'cmd', 'gitbash'])
     .default('cmd')
     .optional(),
   workspaceId: z.string()
     .optional()
     .describe("Workspace ID to execute the shell commands in, defaults to the batch workspace"),
-});
+})
+  .describe("Shell commands execution operation (supports cmd, powershell and gitbash). Prefer grouping multiple commands in the same operation, each command should be a separate string");
 
 
 // Code execute operation
