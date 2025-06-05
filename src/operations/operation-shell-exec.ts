@@ -41,7 +41,7 @@ export async function executeShellExec(
           abortController,
           (process) => onProcessStart(process, index)
         );
-        results.push({ success: true, output });
+        results.push({ success: true, output: output.output, command: command.substring(0, 10) });
       } catch (error) {
         allSuccessful = false;
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -72,7 +72,7 @@ function executeCommand(
   workdir: string,
   abortController: AbortController,
   onProcessStart: (child: ChildProcess) => void
-): Promise<string> {
+): Promise<{ output: string, code: number }> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       shellConfig.cmd,
@@ -118,9 +118,10 @@ function executeCommand(
         return; // Promise già rejected in onAbort
 
       if (code === 0) {
-        resolve(stdout || 'Command completed successfully (no output)');
+        resolve({ output: stdout || 'Command completed successfully (no output)', code });
       } else {
-        reject(new Error(stderr || `Command failed with exit code ${code}`));
+        const msg = `Command Failed w/ Exit code ${code} - stderr: ${stderr}`;
+        reject(new Error(msg));
       }
     });
 
@@ -144,3 +145,4 @@ function executeCommand(
     });
   });
 }
+
