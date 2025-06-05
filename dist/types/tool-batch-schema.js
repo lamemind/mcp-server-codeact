@@ -12,7 +12,7 @@ export const OperationResultSchema = z.object({
 export const BatchExecuteRequestSchema = z.object({
     operations: z.array(BatchOperationSchema),
     sync: z.boolean()
-        .optional().default(false),
+        .optional().default(true),
     workspace: z.string()
         .optional()
         .describe("Workspace ID to execute the batch in, defaults to the server default workspace"),
