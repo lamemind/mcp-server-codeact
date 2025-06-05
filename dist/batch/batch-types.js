@@ -19,15 +19,17 @@ export function mapBatchStatusToAwaitStatus(status) {
         case BatchStatus.TIMEOUT: return 'timeout';
     }
 }
-export function createBatchExecutionContext(request, fallbackWorkdir) {
-    const workingDir = request.workdir || fallbackWorkdir;
+export function createBatchExecutionContext(request, config) {
+    const defaultWorkspace = config.security.workspaces.find(ws => ws.default);
+    const workspaceId = request.workspace || defaultWorkspace.workspaceId;
+    const workspace = config.security.workspaces.find(ws => ws.workspaceId === workspaceId);
     return {
         id: randomUUID(),
         status: BatchStatus.QUEUED,
         request,
         operations: request.operations,
-        workingDir,
-        currentWorkingDir: workingDir,
+        workspace,
+        currentWorkingDir: workspace.fullpath,
         sync: request.sync,
         executionPromise: undefined,
         abortController: new AbortController(),

@@ -1,9 +1,9 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { dirname, resolve, isAbsolute } from 'path';
-export async function executeFileWrite(operation) {
+export async function executeFileWrite(operation, startWorkingDir) {
     for (const [, file] of operation.files.entries()) {
         try {
-            await writeSingleFile(file, operation.workingDir);
+            await writeSingleFile(file, startWorkingDir);
         }
         catch (error) {
             return {

@@ -2,7 +2,6 @@ import { executeCodeExec } from "../operations/operation-code-exec.js";
 import { executeDirCreate } from "../operations/operation-dir-create.js";
 import { executeFileWrite } from "../operations/operation-file-write.js";
 import { executeShellExec } from "../operations/operation-shell-exec.js";
-import { validateOperation, validatePath } from "./batch-utils.js";
 import { BatchStatus, createBatchExecutionContext, mapBatchStatusToAwaitStatus } from "./batch-types.js";
 import * as fs from "node:fs";
 export class BatchExecutor {
@@ -57,8 +56,8 @@ export class BatchExecutor {
         return batch.activeProcess;
     }
     async executeBatch(request) {
-        const batchContext = createBatchExecutionContext(request, this.config.security.workspaces.find(ws => ws.default)?.fullpath);
-        validatePath(this.config, batchContext.workingDir);
+        const batchContext = createBatchExecutionContext(request, this.config);
+        // validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
         if (batchContext.sync) {
             await this.executeBatchSync(batchContext);
@@ -83,9 +82,9 @@ export class BatchExecutor {
             let lastResult = null;
             for (let i = 0; i < batch.operations.length; i++) {
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
+                // operation.workingDir = operation.workingDir || batch.currentWorkingDir;
                 try {
-                    validateOperation(this.config, operation, operation.workingDir);
+                    // validateOperation(this.config, operation, operation.workingDir);
                     lastResult = await this.executeOperation(operation, batch, i);
                     lastResult.operationIndex = i;
                     batch.currentOperationIndex = i + 1;
@@ -146,9 +145,9 @@ export class BatchExecutor {
                     break;
                 }
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
+                // operation.workspaceId = operation.workspaceId || batch.currentWorkingDir;
                 try {
-                    validateOperation(this.config, operation, operation.workingDir);
+                    // validateOperation(this.config, operation, operation.workingDir);
                     lastResult = await this.executeOperation(operation, batch, i);
                     lastResult.operationIndex = i;
                     batch.currentOperationIndex = i + 1;
@@ -381,19 +380,23 @@ export class BatchExecutor {
         console.error('All batches killed and cleaned up');
     }
     async executeOperation(operation, batch, operationIndex) {
+        const startWorkingDir = operation.workspaceId
+            ? this.config.security.workspaces.find(ws => ws.workspaceId === operation.workspaceId).fullpath
+            : batch.currentWorkingDir;
+        console.error(`Executing operation ${operationIndex + 1}/${batch.operations.length} of type ${operation.type} in working directory: ${startWorkingDir}`);
         switch (operation.type) {
             case 'file_write':
-                return await executeFileWrite(operation);
+                return await executeFileWrite(operation, startWorkingDir);
             case 'dir_create':
-                return await executeDirCreate(operation);
+                return await executeDirCreate(operation, startWorkingDir);
             case 'shell_exec':
                 return await executeShellExec(operation, batch.abortController, (process, opIndex) => {
                     this.registerActiveProcess(batch, process, operationIndex, 'shell');
-                });
+                }, startWorkingDir);
             case 'code_exec':
                 return await executeCodeExec(operation, batch.abortController, (process, opIndex) => {
                     this.registerActiveProcess(batch, process, operationIndex, 'code');
-                });
+                }, startWorkingDir);
             default:
                 throw new Error(`Unknown operation type: ${operation.type}`);
         }

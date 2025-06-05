@@ -5,7 +5,7 @@ const SHELL_TYPE_MAPPING = {
     'powershell': ShellType.POWERSHELL,
     'gitbash': ShellType.BASH, // Use BASH for Git Bash
 };
-export async function executeShellExec(operation, abortController, onProcessStart) {
+export async function executeShellExec(operation, abortController, onProcessStart, startWorkingDir) {
     let sessionShell = null;
     try {
         const shell = operation.shell || 'cmd';
@@ -21,7 +21,7 @@ export async function executeShellExec(operation, abortController, onProcessStar
             };
         }
         // Create SessionShell with 30 second timeout
-        sessionShell = new SessionShell(shellType, 30000);
+        sessionShell = new SessionShell(shellType, startWorkingDir, 30000);
         // Handle abort signal by killing session shell
         const abortHandler = () => {
             if (sessionShell) {
@@ -38,13 +38,7 @@ export async function executeShellExec(operation, abortController, onProcessStar
         }
         abortController.signal.addEventListener('abort', abortHandler);
         try {
-            // Set working directory by prepending cd command if needed
             const commands = [...operation.commands];
-            if (operation.workingDir) {
-                // Insert cd command at the beginning
-                commands.unshift(`cd "${operation.workingDir}"`);
-            }
-            // Execute command sequence
             const sessionResult = await sessionShell.executeSequence(commands);
             if (!sessionResult.success) {
                 return {

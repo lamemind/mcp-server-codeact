@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { SessionShell, ShellType } from "./utils/session-shell.js";
 (async function () {
-    const shell = new SessionShell(ShellType.CMD, 100000);
+    const shell = new SessionShell(ShellType.CMD, 'C:\\tmp', 100000);
     const res = await shell.executeSequence([
         'echo Hello World',
         'echo This is a test',

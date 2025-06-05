@@ -9,11 +9,12 @@ export var ShellType;
     ShellType["SH"] = "sh";
 })(ShellType || (ShellType = {}));
 export class SessionShell {
-    constructor(shellType, timeoutMs) {
+    constructor(shellType, startWorkingDir, timeoutMs) {
         this.process = null;
         this.timeoutHandle = null;
         this.sessionStartTime = 0;
         this.shellType = shellType;
+        this.startWorkingDir = startWorkingDir;
         this.timeout = timeoutMs;
     }
     /**
@@ -95,7 +96,8 @@ export class SessionShell {
                     ...process.env,
                     TERM: 'dumb', // Evita controlli ANSI
                     PS1: '$ ', // Prompt semplice per bash/zsh
-                }
+                },
+                cwd: this.startWorkingDir
             });
             if (!this.process.stdin || !this.process.stdout || !this.process.stderr) {
                 reject(new Error('Failed to create process streams'));

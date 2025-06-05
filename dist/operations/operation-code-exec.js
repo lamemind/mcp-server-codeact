@@ -19,13 +19,12 @@ const RUNTIME_CONFIGS = {
         timeout: 30000
     }
 };
-export async function executeCodeExec(operation, abortController, onProcessStart) {
+export async function executeCodeExec(operation, abortController, onProcessStart, startWorkingDir) {
     let tempFilePath = null;
     try {
         const runtime = RUNTIME_CONFIGS[operation.runtime];
-        if (!runtime) {
+        if (!runtime)
             throw new Error(`Unsupported runtime: ${operation.runtime}`);
-        }
         if (abortController?.signal.aborted) {
             return {
                 operationIndex: -1,
@@ -35,10 +34,10 @@ export async function executeCodeExec(operation, abortController, onProcessStart
         }
         // Create temporary file
         const tempFileName = `temp_${randomUUID()}${runtime.extension}`;
-        tempFilePath = join(operation.workingDir, tempFileName);
+        tempFilePath = join(startWorkingDir, tempFileName);
         await writeFile(tempFilePath, operation.code, 'utf8');
         // Execute code
-        const output = await executeCodeFile(runtime.command, tempFilePath, operation.workingDir, runtime.timeout, abortController, (process) => onProcessStart(process, 0));
+        const output = await executeCodeFile(runtime.command, tempFilePath, startWorkingDir, runtime.timeout, abortController, (process) => onProcessStart(process, 0));
         return {
             operationIndex: -1,
             status: 'success',
