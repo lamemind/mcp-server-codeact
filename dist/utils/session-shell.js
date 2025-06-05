@@ -51,7 +51,7 @@ export class SessionShell {
         switch (this.shellType) {
             case ShellType.CMD:
                 // Per CMD usiamo && che funziona correttamente
-                return `${command} && echo ${marker}_EXITCODE_%ERRORLEVEL%`;
+                return `(${command}) && echo ${marker}_EXITCODE_%ERRORLEVEL%`;
             case ShellType.POWERSHELL:
                 // Per PowerShell, gestiamo sia versioni vecchie che nuove
                 // Usiamo try-catch per gestire errori e $LASTEXITCODE per l'exit code
@@ -62,7 +62,7 @@ export class SessionShell {
                 // Per shell Unix usiamo $? per catturare l'exit code
                 return `${command}; echo "${marker}_EXITCODE_$?"`;
             default:
-                return `${command} && echo ${marker}`;
+                return `(${command}) && echo ${marker}`;
         }
     }
     /**
@@ -140,7 +140,7 @@ export class SessionShell {
             }
             const marker = this.generateMarker();
             const formattedCommand = this.formatCommandWithMarker(command, marker);
-            console.log(`Executing command: ${command} with marker: ${marker} (Formatted: ${formattedCommand})`);
+            console.error(`Executing command: "${command.substring(0, 20)}" with marker: ${marker} (Formatted: ${formattedCommand})`);
             let output = '';
             let errorOutput = '';
             let commandFinished = false;
@@ -246,7 +246,7 @@ export class SessionShell {
                 if (!command.trim())
                     continue; // Salta comandi vuoti
                 const result = await this.executeCommand(command.trim());
-                console.log(`Command executed: ${command} - Exit code: ${result.exitCode}`);
+                console.error(`Command executed: ${command} - Exit code: ${result.exitCode}`);
                 results.push(result);
                 // Fermati al primo errore (exit code != 0 o presenza di errore)
                 if (result.exitCode !== 0 || result.error) {
