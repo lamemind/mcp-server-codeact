@@ -7,7 +7,7 @@ import { BatchOperationSchema } from './act-operations-schema.js';
 export const OperationResultSchema = z.object({
   operationIndex: z.number(),
   status: z.enum(['success', 'error']),
-  output: z.string().optional(),
+  output: z.any().optional(),
   error: z.string().optional(),
 });
 
