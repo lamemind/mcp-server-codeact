@@ -8,6 +8,7 @@ import { BatchExecuteRequest, BatchExecuteResponseAsync, BatchExecuteResponseSyn
 import { validateOperation, validatePath } from "./batch-utils.js";
 import { ActiveProcess, BatchExecutionContext, BatchStatus, createBatchExecutionContext, mapBatchStatusToAwaitStatus } from "./batch-types.js";
 import { ChildProcess } from "node:child_process";
+import * as fs from "node:fs";
 
 export class BatchExecutor {
 
@@ -19,6 +20,13 @@ export class BatchExecutor {
     constructor(config: ServerConfig) {
         this.config = config;
         // this.startCleanupTimer();
+
+        config.security.allowedPaths.forEach(path => {
+            if (!fs.existsSync(path)) {
+                fs.mkdirSync(path, { recursive: true });
+                console.error(`Created allowed path: ${path}`);
+            }
+        });
     }
 
     private registerBatch(batch: BatchExecutionContext): void {
@@ -78,7 +86,7 @@ export class BatchExecutor {
     }
 
     public async executeBatch(request: BatchExecuteRequest): Promise<BatchExecuteResponseSync | BatchExecuteResponseAsync> {
-        const batchContext = createBatchExecutionContext(request);
+        const batchContext = createBatchExecutionContext(request, this.config.security.allowedPaths[0]);
         validatePath(this.config, batchContext.workingDir);
         this.registerBatch(batchContext);
 
