@@ -115,7 +115,7 @@ export class BatchExecutor {
 
             for (let i = 0; i < batch.operations.length; i++) {
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.workingDir;
+                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
 
                 try {
                     validateOperation(this.config, operation, operation.workingDir);
@@ -124,6 +124,12 @@ export class BatchExecutor {
                     lastResult.operationIndex = i;
                     batch.currentOperationIndex = i + 1;
                     batch.activeProcess = undefined;
+
+                    // Update currentWorkingDir if operation returned a new working directory
+                    if (lastResult.finalWorkingDir) {
+                        batch.currentWorkingDir = lastResult.finalWorkingDir;
+                        console.error(`Batch ${batch.id}: working directory updated to ${batch.currentWorkingDir}`);
+                    }
 
                     console.error(`Batch ${batch.id}: completed operation ${i + 1}/${batch.operations.length}`);
 
@@ -183,7 +189,7 @@ export class BatchExecutor {
                 }
 
                 const operation = batch.operations[i];
-                operation.workingDir = operation.workingDir || batch.workingDir;
+                operation.workingDir = operation.workingDir || batch.currentWorkingDir;
 
                 try {
                     validateOperation(this.config, operation, operation.workingDir);
@@ -193,6 +199,12 @@ export class BatchExecutor {
                     batch.currentOperationIndex = i + 1;
                     batch.results.push(lastResult);
                     batch.activeProcess = undefined;
+
+                    // Update currentWorkingDir if operation returned a new working directory
+                    if (lastResult.finalWorkingDir) {
+                        batch.currentWorkingDir = lastResult.finalWorkingDir;
+                        console.error(`Batch ${batch.id}: working directory updated to ${batch.currentWorkingDir}`);
+                    }
 
                     console.error(`Batch ${batch.id}: completed operation ${i + 1}/${batch.operations.length}`);
 

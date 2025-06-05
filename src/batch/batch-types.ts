@@ -30,6 +30,7 @@ export interface BatchExecutionContext {
   request: BatchExecuteRequest;
   operations: BatchExecuteRequest['operations'];
   workingDir: string;
+  currentWorkingDir: string;
 
   // Execution tracking
   sync: boolean; // If true, this is a synchronous batch
@@ -59,12 +60,14 @@ export interface ActiveProcess {
 }
 
 export function createBatchExecutionContext(request: BatchExecuteRequest, fallbackWorkdir: string): BatchExecutionContext {
+  const workingDir = request.workdir || fallbackWorkdir;
   return {
     id: randomUUID(),
     status: BatchStatus.QUEUED,
     request,
     operations: request.operations,
-    workingDir: request.workdir || fallbackWorkdir,
+    workingDir,
+    currentWorkingDir: workingDir,
 
     sync: request.sync,
     executionPromise: undefined,

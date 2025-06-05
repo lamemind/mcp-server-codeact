@@ -1,11 +1,13 @@
-import { spawn, ChildProcess } from 'child_process';
+import { ChildProcess } from 'child_process';
 import { ShellExecOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
+import { SessionShell, ShellType } from '../utils/session-shell.js';
 
-const SHELL_COMMANDS = {
-  powershell: { cmd: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-Command'] },
-  cmd: { cmd: 'cmd.exe', args: ['/c'] },
-  gitbash: { cmd: 'C:\\Program Files\\Git\\bin\\bash.exe', args: ['-c'] }
+// Mapping from schema shell types to SessionShell types
+const SHELL_TYPE_MAPPING: Record<string, ShellType> = {
+  'cmd': ShellType.CMD,
+  'powershell': ShellType.POWERSHELL,
+  'gitbash': ShellType.BASH, // Use BASH for Git Bash
 };
 
 export async function executeShellExec(
@@ -13,49 +15,75 @@ export async function executeShellExec(
   abortController: AbortController,
   onProcessStart: (process: ChildProcess, operationIndex: number) => void
 ): Promise<OperationResult> {
+  let sessionShell: SessionShell | null = null;
+  
   try {
     const shell = operation.shell || 'cmd';
-    const shellConfig = SHELL_COMMANDS[shell];
+    const shellType = SHELL_TYPE_MAPPING[shell];
 
-    if (!shellConfig)
+    if (!shellType) {
       throw new Error(`Unsupported shell: ${shell}`);
+    }
 
-    if (abortController?.signal.aborted)
-      // TODO Ma non sarebbe meglio tirare un'eccezione?
+    if (abortController?.signal.aborted) {
       return {
         operationIndex: -1,
         status: 'error',
         error: 'Operation was aborted before execution'
       };
-
-    const results: any[] = [];
-    let allSuccessful = true;
-
-    // Execute commands sequentially
-    for (const [index, command] of operation.commands.entries()) {
-      try {
-        const output = await executeCommand(
-          shellConfig,
-          command,
-          operation.workingDir!,
-          abortController,
-          (process) => onProcessStart(process, index)
-        );
-        results.push({ success: true, output: output.output, command: command.substring(0, 10) });
-      } catch (error) {
-        allSuccessful = false;
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        results.push({ success: false, error: errorMsg });
-        break;
-      }
     }
 
-    return {
-      operationIndex: -1,
-      status: allSuccessful ? 'success' : 'error',
-      output: results,
-      error: allSuccessful ? undefined : 'One or more commands failed'
+    // Create SessionShell with 30 second timeout
+    sessionShell = new SessionShell(shellType, 30000);
+    
+    // Handle abort signal by killing session shell
+    const abortHandler = () => {
+      if (sessionShell) {
+        console.error('Aborting shell session due to batch abort signal');
+        // SessionShell cleanup is handled internally
+      }
     };
+    
+    if (abortController.signal.aborted) {
+      return {
+        operationIndex: -1,
+        status: 'error',
+        error: 'Operation was aborted before execution'
+      };
+    }
+    
+    abortController.signal.addEventListener('abort', abortHandler);
+    
+    try {
+      // Set working directory by prepending cd command if needed
+      const commands = [...operation.commands];
+      if (operation.workingDir) {
+        // Insert cd command at the beginning
+        commands.unshift(`cd "${operation.workingDir}"`);
+      }
+
+      // Execute command sequence
+      const sessionResult = await sessionShell.executeSequence(commands);
+
+      if (!sessionResult.success) {
+        return {
+          operationIndex: -1,
+          status: 'error',
+          error: sessionResult.error || 'Shell execution failed',
+          output: sessionResult.commands
+        };
+      }
+
+      return {
+        operationIndex: -1,
+        status: 'success',
+        output: sessionResult.commands,
+        finalWorkingDir: sessionResult.finalWorkingDirectory || operation.workingDir
+      };
+      
+    } finally {
+      abortController.signal.removeEventListener('abort', abortHandler);
+    }
 
   } catch (error) {
     return {
@@ -65,84 +93,3 @@ export async function executeShellExec(
     };
   }
 }
-
-function executeCommand(
-  shellConfig: { cmd: string; args: string[] },
-  command: string,
-  workdir: string,
-  abortController: AbortController,
-  onProcessStart: (child: ChildProcess) => void
-): Promise<{ output: string, code: number }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      shellConfig.cmd,
-      [...shellConfig.args, command],
-      {
-        cwd: workdir,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: process.env
-      }
-    );
-
-    onProcessStart(child);
-
-    let stdout = '';
-    let stderr = '';
-    let isAborted = false;
-
-    // Handle abort signal
-    const onAbort = () => {
-      isAborted = true;
-      child.kill('SIGTERM');
-      reject(new Error('Command execution was aborted'));
-    };
-
-    if (abortController.signal.aborted) {
-      child.kill('SIGTERM');
-      reject(new Error('Command execution was aborted'));
-      return;
-    }
-    abortController.signal.addEventListener('abort', onAbort);
-
-    child.stdout?.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    child.stderr?.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    child.on('close', (code) => {
-      abortController.signal.removeEventListener('abort', onAbort);
-      if (isAborted)
-        return; // Promise già rejected in onAbort
-
-      if (code === 0) {
-        resolve({ output: stdout || 'Command completed successfully (no output)', code });
-      } else {
-        const msg = `Command Failed w/ Exit code ${code} - stderr: ${stderr}`;
-        reject(new Error(msg));
-      }
-    });
-
-    child.on('error', (error) => {
-      abortController.signal.removeEventListener('abort', onAbort);
-      if (!isAborted)
-        reject(new Error(`Process error: ${error.message}`));
-    });
-
-    // 30 second timeout (manteniamo il comportamento esistente)
-    const timeoutId = setTimeout(() => {
-      if (!isAborted) {
-        child.kill('SIGTERM');
-        reject(new Error('Command execution timeout'));
-      }
-    }, 30000);
-
-    // Clear timeout when process ends
-    child.on('close', () => {
-      clearTimeout(timeoutId);
-    });
-  });
-}
-
