@@ -482,6 +482,7 @@ export class BatchExecutor {
             case 'shell_exec':
                 return await executeShellExec(
                     operation,
+                    this.config,
                     batch.abortController,
                     (process: ChildProcess, opIndex: number) => {
                         this.registerActiveProcess(batch, process, operationIndex, 'shell');
@@ -491,6 +492,7 @@ export class BatchExecutor {
             case 'code_exec':
                 return await executeCodeExec(
                     operation,
+                    this.config,
                     batch.abortController,
                     (process: ChildProcess, opIndex: number) => {
                         this.registerActiveProcess(batch, process, operationIndex, 'code');

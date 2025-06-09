@@ -4,27 +4,26 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { CodeExecOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
+import { ServerConfig } from '../server/server-config-schema.js';
 
 const RUNTIME_CONFIGS = {
   node: {
     command: 'node',
-    extension: '.js',
-    timeout: 30000
+    extension: '.js'
   },
   php: {
     command: 'php',
-    extension: '.php',
-    timeout: 30000
+    extension: '.php'
   },
   python: {
     command: 'python',
-    extension: '.py',
-    timeout: 30000
+    extension: '.py'
   }
 };
 
 export async function executeCodeExec(
   operation: CodeExecOperation,
+  config: ServerConfig,
   abortController: AbortController,
   onProcessStart: (process: ChildProcess, operationIndex: number) => void,
   startWorkingDir: string
@@ -33,7 +32,7 @@ export async function executeCodeExec(
 
   try {
     const runtime = RUNTIME_CONFIGS[operation.runtime];
-    if (!runtime) 
+    if (!runtime)
       throw new Error(`Unsupported runtime: ${operation.runtime}`);
 
     if (abortController?.signal.aborted) {
@@ -55,7 +54,7 @@ export async function executeCodeExec(
       runtime.command,
       tempFilePath,
       startWorkingDir,
-      runtime.timeout,
+      config.security.maxOperationTimeout * 1000,
       abortController,
       (process) => onProcessStart(process, 0)
     );
@@ -88,7 +87,7 @@ function executeCodeFile(
   command: string,
   filePath: string,
   workdir: string,
-  timeout: number,
+  timeoutMs: number,
   abortController: AbortController,
   onProcessStart: (process: ChildProcess) => void
 ): Promise<string> {
@@ -148,9 +147,9 @@ function executeCodeFile(
     const timeoutId = setTimeout(() => {
       if (!isAborted) {
         process.kill('SIGTERM');
-        reject(new Error(`Code execution timeout after ${timeout}ms`));
+        reject(new Error(`Code execution timeout after ${timeoutMs}ms`));
       }
-    }, timeout);
+    }, timeoutMs);
 
     // Clear timeout when process ends
     process.on('close', () => {

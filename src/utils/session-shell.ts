@@ -176,7 +176,14 @@ export class SessionShell {
 
             const marker = this.generateMarker();
             const formattedCommand = this.formatCommandWithMarker(command, marker);
-            console.error(`Executing command: "${command.substring(0, 20)}" with marker: ${marker} (Formatted: "${formattedCommand}")`);
+            const elapsedTime = Date.now() - this.sessionStartTime;
+            const remainingTime = Math.max(1000, (this.timeout - elapsedTime) * 0.95);
+
+            // console.error(`Timeout debug: Session started at ${new Date(this.sessionStartTime).toISOString()}`);
+            // console.error(`Timeout debug: Current time is ${new Date().toISOString()}`);
+            // console.error(`Timeout debug: Elapsed time is ${elapsedTime}ms`);
+            // console.error(`Timeout debug: Remaining time for command is ${remainingTime}ms`);
+            console.error(`Executing command "${command.substring(0, 20)}" - timeout ${(remainingTime/1000).toFixed(2)}s - marker "${marker}" - Full Formatted: "${formattedCommand}"`);
 
             let output = '';
             let errorOutput = '';
@@ -234,10 +241,6 @@ export class SessionShell {
                     return;
                 errorOutput += data.toString();
             };
-
-            // Timeout per il singolo comando (75% del timeout totale rimasto)
-            const elapsedTime = Date.now() - this.sessionStartTime;
-            const remainingTime = Math.max(1000, (this.timeout - elapsedTime) * 0.75);
 
             commandTimeout = setTimeout(() => {
                 console.error(`Command timeout after ${remainingTime}ms: ${command}`);

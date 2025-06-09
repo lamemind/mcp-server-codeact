@@ -2,6 +2,7 @@ import { ChildProcess } from 'child_process';
 import { ShellExecOperation } from '../types/act-operations-schema.js';
 import { OperationResult } from '../types/tool-batch-schema.js';
 import { SessionShell, ShellType } from '../utils/session-shell.js';
+import { ServerConfig } from '../server/server-config-schema.js';
 
 // Mapping from schema shell types to SessionShell types
 const SHELL_TYPE_MAPPING: Record<string, ShellType> = {
@@ -12,6 +13,7 @@ const SHELL_TYPE_MAPPING: Record<string, ShellType> = {
 
 export async function executeShellExec(
   operation: ShellExecOperation,
+  config: ServerConfig,
   abortController: AbortController,
   onProcessStart: (process: ChildProcess, operationIndex: number) => void,
   startWorkingDir: string
@@ -33,8 +35,7 @@ export async function executeShellExec(
       };
     }
 
-    // Create SessionShell with 30 second timeout
-    sessionShell = new SessionShell(shellType, startWorkingDir, 30000);
+    sessionShell = new SessionShell(shellType, startWorkingDir, config.security.maxOperationTimeout * 1000);
 
     // Handle abort signal by killing session shell
     const abortHandler = () => {
