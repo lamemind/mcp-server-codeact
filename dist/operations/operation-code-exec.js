@@ -5,21 +5,18 @@ import { randomUUID } from 'crypto';
 const RUNTIME_CONFIGS = {
     node: {
         command: 'node',
-        extension: '.js',
-        timeout: 30000
+        extension: '.js'
     },
     php: {
         command: 'php',
-        extension: '.php',
-        timeout: 30000
+        extension: '.php'
     },
     python: {
         command: 'python',
-        extension: '.py',
-        timeout: 30000
+        extension: '.py'
     }
 };
-export async function executeCodeExec(operation, abortController, onProcessStart, startWorkingDir) {
+export async function executeCodeExec(operation, config, abortController, onProcessStart, startWorkingDir) {
     let tempFilePath = null;
     try {
         const runtime = RUNTIME_CONFIGS[operation.runtime];
@@ -37,7 +34,7 @@ export async function executeCodeExec(operation, abortController, onProcessStart
         tempFilePath = join(startWorkingDir, tempFileName);
         await writeFile(tempFilePath, operation.code, 'utf8');
         // Execute code
-        const output = await executeCodeFile(runtime.command, tempFilePath, startWorkingDir, runtime.timeout, abortController, (process) => onProcessStart(process, 0));
+        const output = await executeCodeFile(runtime.command, tempFilePath, startWorkingDir, config.security.maxOperationTimeout * 1000, abortController, (process) => onProcessStart(process, 0));
         return {
             operationIndex: -1,
             status: 'success',
@@ -63,7 +60,7 @@ export async function executeCodeExec(operation, abortController, onProcessStart
         }
     }
 }
-function executeCodeFile(command, filePath, workdir, timeout, abortController, onProcessStart) {
+function executeCodeFile(command, filePath, workdir, timeoutMs, abortController, onProcessStart) {
     return new Promise((resolve, reject) => {
         const process = spawn(command, [filePath], {
             cwd: workdir,
@@ -111,9 +108,9 @@ function executeCodeFile(command, filePath, workdir, timeout, abortController, o
         const timeoutId = setTimeout(() => {
             if (!isAborted) {
                 process.kill('SIGTERM');
-                reject(new Error(`Code execution timeout after ${timeout}ms`));
+                reject(new Error(`Code execution timeout after ${timeoutMs}ms`));
             }
-        }, timeout);
+        }, timeoutMs);
         // Clear timeout when process ends
         process.on('close', () => {
             clearTimeout(timeoutId);

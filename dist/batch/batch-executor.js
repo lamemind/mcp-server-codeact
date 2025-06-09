@@ -390,11 +390,11 @@ export class BatchExecutor {
             case 'dir_create':
                 return await executeDirCreate(operation, startWorkingDir);
             case 'shell_exec':
-                return await executeShellExec(operation, batch.abortController, (process, opIndex) => {
+                return await executeShellExec(operation, this.config, batch.abortController, (process, opIndex) => {
                     this.registerActiveProcess(batch, process, operationIndex, 'shell');
                 }, startWorkingDir);
             case 'code_exec':
-                return await executeCodeExec(operation, batch.abortController, (process, opIndex) => {
+                return await executeCodeExec(operation, this.config, batch.abortController, (process, opIndex) => {
                     this.registerActiveProcess(batch, process, operationIndex, 'code');
                 }, startWorkingDir);
             default:
