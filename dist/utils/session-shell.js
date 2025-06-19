@@ -162,7 +162,7 @@ export class SessionShell {
                 if (commandFinished)
                     return;
                 const chunk = data.toString();
-                console.error(`Received data chunk: ----\n${chunk.substring(0, 500)}\n--------`);
+                // console.error(`Received data chunk: ----\n${chunk.substring(0, 500)}\n--------`);
                 output += chunk;
                 // Cerca il marker con pattern più robusto
                 // Supporta: MARKER_EXITCODE_0, MARKER_EXITCODE_1_ERROR_message
