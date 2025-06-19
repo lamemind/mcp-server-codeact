@@ -202,7 +202,7 @@ export class SessionShell {
                     return;
 
                 const chunk = data.toString();
-                console.error(`Received data chunk: ----\n${chunk.substring(0, 500)}\n--------`);
+                // console.error(`Received data chunk: ----\n${chunk.substring(0, 500)}\n--------`);
                 output += chunk;
 
                 // Cerca il marker con pattern più robusto
